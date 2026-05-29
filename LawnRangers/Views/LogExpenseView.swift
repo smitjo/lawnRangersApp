@@ -1,49 +1,47 @@
 import SwiftUI
 import SwiftData
 
-/// "Log an Expense" form.
-///
-/// PLACEHOLDER FIELDS: these mirror a typical business expense log. Replace
-/// them with the exact questions from the source Google Form once available.
+/// "Log an Expense" — exact copy of the "Overhead Expense" form.
 struct LogExpenseView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
-    @State private var date: Date = .now
-    @State private var category: String = "Fuel"
-    @State private var vendor: String = ""
-    @State private var amount: Double?
-    @State private var paymentMethod: String = "Card"
-    @State private var notes: String = ""
+    @State private var expenses: String = ""
+    @State private var amount: String = ""
+    @State private var comment: String = ""
 
-    private let categoryOptions = [
-        "Fuel", "Equipment", "Equipment repair", "Supplies",
-        "Labor / Payroll", "Insurance", "Vehicle", "Marketing", "Other",
-    ]
-    private let paymentOptions = ["Cash", "Check", "Card", "Venmo"]
+    private var canSave: Bool {
+        !expenses.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !amount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Expense") {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                    Picker("Category", selection: $category) {
-                        ForEach(categoryOptions, id: \.self) { Text($0) }
-                    }
-                    TextField("Vendor / paid to", text: $vendor)
+                Section {
+                    Text("This is to record any overhead purchases.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
-                Section("Amount") {
-                    TextField("Amount", value: $amount, format: .currency(code: "USD"))
+                Section {
+                    TextField("Your answer", text: $expenses)
+                } header: {
+                    requiredHeader("Expenses")
+                }
+
+                Section {
+                    TextField("Your answer", text: $amount)
                         .keyboardType(.decimalPad)
-                    Picker("Payment method", selection: $paymentMethod) {
-                        ForEach(paymentOptions, id: \.self) { Text($0) }
-                    }
+                } header: {
+                    requiredHeader("Amount")
                 }
 
-                Section("Notes") {
-                    TextField("Description / notes", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
+                Section {
+                    TextField("Your answer", text: $comment, axis: .vertical)
+                        .lineLimit(2...5)
+                } header: {
+                    Text("Comment")
                 }
             }
             .navigationTitle("Log an Expense")
@@ -53,22 +51,29 @@ struct LogExpenseView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
+                    Button("Submit") { save() }
+                        .disabled(!canSave)
                 }
             }
         }
     }
 
+    private func requiredHeader(_ title: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title)
+            Text("*").foregroundStyle(.red)
+        }
+    }
+
     private func save() {
         let expense = Expense(
-            date: date,
-            category: category,
-            vendor: vendor,
-            amount: amount ?? 0,
-            paymentMethod: paymentMethod,
-            notes: notes
+            expenses: expenses.trimmingCharacters(in: .whitespacesAndNewlines),
+            amount: amount.trimmingCharacters(in: .whitespacesAndNewlines),
+            comment: comment.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         context.insert(expense)
+        let payload = expense.sheetPayload()
+        Task { await SheetSubmitter.submit(payload) }
         dismiss()
     }
 }

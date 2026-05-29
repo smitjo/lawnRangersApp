@@ -2,10 +2,11 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
-    @Query(sort: \LawnLog.date, order: .reverse) private var lawnLogs: [LawnLog]
-    @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
+    @Query(sort: \LawnLog.timestamp, order: .reverse) private var lawnLogs: [LawnLog]
+    @Query(sort: \Expense.timestamp, order: .reverse) private var expenses: [Expense]
 
     @State private var activeSheet: ActiveSheet?
+    @State private var showingSettings = false
 
     /// The two entry types reachable from the "+" dropdown in the top-right.
     private enum ActiveSheet: Identifiable {
@@ -25,6 +26,14 @@ struct HomeView: View {
             }
             .navigationTitle("Lawn Rangers")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .accessibilityLabel("Settings")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     // The "+" dropdown menu.
                     Menu {
@@ -52,6 +61,9 @@ struct HomeView: View {
                     LogExpenseView()
                 }
             }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
         }
     }
 
@@ -73,16 +85,20 @@ struct HomeView: View {
                 Section("Lawns") {
                     ForEach(lawnLogs) { log in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(log.customerName.isEmpty ? "Lawn service" : log.customerName)
+                            Text(log.whereLocation.isEmpty ? "Lawn" : log.whereLocation)
                                 .font(.headline)
                             HStack {
-                                Text(log.date, style: .date)
-                                if log.amountCharged > 0 {
-                                    Spacer()
-                                    Text(log.amountCharged, format: .currency(code: "USD"))
-                                }
+                                Text(log.timestamp, style: .date)
+                                Spacer()
+                                Text(log.howMuch)
                             }
                             .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            HStack(spacing: 12) {
+                                Label("Customer: \(log.customerPaid)", systemImage: "person")
+                                Label("Team: \(log.teammemberPaid)", systemImage: "person.2")
+                            }
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                         }
                     }
@@ -92,12 +108,12 @@ struct HomeView: View {
                 Section("Expenses") {
                     ForEach(expenses) { expense in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(expense.category.isEmpty ? "Expense" : expense.category)
+                            Text(expense.expenses.isEmpty ? "Expense" : expense.expenses)
                                 .font(.headline)
                             HStack {
-                                Text(expense.date, style: .date)
+                                Text(expense.timestamp, style: .date)
                                 Spacer()
-                                Text(expense.amount, format: .currency(code: "USD"))
+                                Text(expense.amount)
                             }
                             .font(.subheadline)
                             .foregroundStyle(.secondary)

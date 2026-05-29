@@ -1,33 +1,39 @@
 import Foundation
 import SwiftData
 
-/// A single "Log an Expense" entry.
-///
-/// NOTE: These fields are a best-guess placeholder for a business expense log.
-/// They will be replaced to exactly match the source Google Form once its
-/// field list is available.
+/// A single "Log an Expense" entry — mirrors the "Overhead Expense" Google Form.
+/// The timestamp is captured automatically at save time.
 @Model
 final class Expense {
-    var date: Date
-    var category: String
-    var vendor: String
-    var amount: Double
-    var paymentMethod: String
-    var notes: String
+    /// Timestamp (auto).
+    var timestamp: Date
+    /// "Expenses" — what was purchased (required).
+    var expenses: String
+    /// "Amount" (required). Stored as free text to match the form's short-answer field.
+    var amount: String
+    /// "Comment" (optional).
+    var comment: String
 
     init(
-        date: Date = .now,
-        category: String = "",
-        vendor: String = "",
-        amount: Double = 0,
-        paymentMethod: String = "",
-        notes: String = ""
+        timestamp: Date = .now,
+        expenses: String = "",
+        amount: String = "",
+        comment: String = ""
     ) {
-        self.date = date
-        self.category = category
-        self.vendor = vendor
+        self.timestamp = timestamp
+        self.expenses = expenses
         self.amount = amount
-        self.paymentMethod = paymentMethod
-        self.notes = notes
+        self.comment = comment
+    }
+
+    /// JSON payload for the Google Sheets backend.
+    func sheetPayload() -> [String: Any] {
+        [
+            "type": "expense",
+            "timestamp": ISO8601DateFormatter().string(from: timestamp),
+            "expenses": expenses,
+            "amount": amount,
+            "comment": comment,
+        ]
     }
 }
