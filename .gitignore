@@ -11,6 +11,11 @@ build/
 *.xcscmblueprint
 *.xccheckout
 
+# Xcode auto-generated workspace data (embedded in the .xcodeproj)
+*.xcworkspace/contents.xcworkspacedata
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.xcworkspace/xcshareddata/swiftpm/
+
 # Swift Package Manager
 .swiftpm/
 .build/
