@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#000000" />
+<title>Lawn Rangers</title>
+<style>
+  :root {
+    --green:#2E7D32; --green-light:#5cc466; --bg:#000; --grouped:#000;
+    --card:#1c1c1e; --card2:#2c2c2e; --text:#fff; --muted:#8e8e93; --muted2:#636366;
+    --line:#38383a; --sep:#48484a; --red:#ff453a; --blue:#0a84ff;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .screen { position:relative; min-height:100dvh; }
+
+  /* Splash */
+  #splash { position:fixed; inset:0; z-index:100; overflow:hidden;
+    background:linear-gradient(to bottom,#3a9a40,var(--green));
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    transition:opacity .5s ease; }
+  #splash.hide { opacity:0; pointer-events:none; }
+  #splash h1 { font-size:40px; font-weight:800; margin:0; color:#fff; letter-spacing:-.5px; }
+  #splash .lasso { filter:drop-shadow(0 2px 5px rgba(0,0,0,.25)); }
+  #grass { position:absolute; left:0; right:0; bottom:0; line-height:0; }
+
+  /* Nav bar */
+  .nav { position:sticky; top:0; z-index:10; background:rgba(0,0,0,.8);
+    backdrop-filter:saturate(180%) blur(20px); border-bottom:.5px solid var(--line);
+    padding-top:env(safe-area-inset-top); }
+  .nav .barrow { display:flex; align-items:center; justify-content:space-between; height:44px; padding:0 12px; }
+  .nav .btn { color:var(--green-light); font-size:17px; background:none; border:none; cursor:pointer;
+    display:flex; align-items:center; gap:4px; min-width:60px; }
+  .nav .btn.r { justify-content:flex-end; }
+  .nav .btn.plus { font-size:26px; font-weight:300; }
+  .nav .navtitle { font-size:17px; font-weight:600; }
+  .largetitle { font-size:34px; font-weight:800; letter-spacing:-.6px; padding:6px 16px 10px; }
+
+  /* Grouped list */
+  .list { padding:18px 16px 50px; max-width:680px; margin:0 auto; }
+  .ghead { color:var(--muted); font-size:13px; font-weight:400; padding:0 16px 7px; }
+  .gfoot { color:var(--muted); font-size:13px; padding:7px 16px 0; line-height:1.35; }
+  .group { background:var(--card); border-radius:11px; overflow:hidden; margin-bottom:22px; }
+  .cell { padding:11px 16px; border-bottom:.5px solid var(--sep); }
+  .cell:last-child { border-bottom:none; }
+  .cell.tap { cursor:pointer; }
+  .cell.tap:active { background:var(--card2); }
+
+  /* Home cells */
+  .entry .top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .entry .ttl { font-size:17px; font-weight:600; }
+  .entry .rate { font-size:16px; color:var(--muted); flex:none; }
+  .entry .sub { display:flex; justify-content:space-between; gap:10px; color:var(--muted);
+    font-size:13px; margin-top:3px; }
+  .entry .paid { display:flex; gap:16px; margin-top:8px; color:var(--muted); font-size:12px; }
+  .entry .paid .x { display:flex; align-items:center; gap:5px; }
+  .entry .paid svg { fill:currentColor; }
+
+  .empty { text-align:center; color:var(--muted); padding:90px 30px; }
+  .empty svg { fill:var(--muted2); }
+  .empty h2 { font-size:20px; font-weight:700; color:#d0d0d2; margin:14px 0 6px; }
+  .empty p { font-size:15px; margin:0; }
+
+  /* + menu */
+  #scrim { position:fixed; inset:0; z-index:40; display:none; }
+  #scrim.show { display:block; }
+  #menu { position:fixed; right:10px; top:calc(46px + env(safe-area-inset-top)); z-index:41;
+    background:rgba(44,44,46,.82); backdrop-filter:blur(22px); border-radius:14px; overflow:hidden;
+    min-width:220px; box-shadow:0 12px 36px rgba(0,0,0,.55); display:none;
+    transform-origin:top right; }
+  #menu.show { display:block; animation:pop .16s ease; }
+  @keyframes pop { from{opacity:0; transform:scale(.92)} to{opacity:1; transform:scale(1)} }
+  #menu button { display:flex; align-items:center; justify-content:space-between; width:100%;
+    background:none; border:none; color:var(--text); padding:13px 16px; font-size:17px;
+    text-align:left; cursor:pointer; gap:14px; }
+  #menu button:first-child { border-bottom:.5px solid rgba(255,255,255,.12); }
+  #menu button:active { background:rgba(255,255,255,.08); }
+  #menu button svg { fill:var(--text); flex:none; }
+
+  /* Form sheets */
+  .sheet { position:fixed; inset:0; background:var(--grouped); z-index:50;
+    transform:translateY(100%); transition:transform .35s cubic-bezier(.32,.72,0,1);
+    display:flex; flex-direction:column; }
+  .sheet.show { transform:translateY(0); }
+  .sheet .snav { position:sticky; top:0; background:rgba(0,0,0,.8);
+    backdrop-filter:blur(20px); border-bottom:.5px solid var(--line);
+    padding-top:env(safe-area-inset-top); }
+  .sheet .snav .barrow { display:flex; align-items:center; justify-content:space-between; height:50px; padding:0 16px; }
+  .sheet .snav .t { font-size:17px; font-weight:600; }
+  .sheet .snav button { background:none; border:none; font-size:17px; cursor:pointer; color:var(--green-light); }
+  .sheet .snav button.cancel { color:var(--green-light); font-weight:400; }
+  .sheet .snav button.submit { font-weight:600; }
+  .sheet .snav button:disabled { color:var(--muted2); }
+  .sbody { overflow-y:auto; flex:1; padding:18px 16px 50px; -webkit-overflow-scrolling:touch; max-width:680px; margin:0 auto; width:100%; }
+
+  input[type=text], textarea { width:100%; background:transparent; border:none; color:var(--text);
+    font-size:17px; font-family:inherit; padding:0; outline:none; }
+  textarea { min-height:46px; resize:none; line-height:1.4; }
+  .selrow { display:flex; align-items:center; justify-content:space-between; }
+  .selrow select { background:none; border:none; color:var(--text); font-size:17px; font-family:inherit;
+    text-align:right; appearance:none; max-width:70%; }
+  .opt { display:flex; align-items:center; gap:12px; cursor:pointer; }
+  .opt .box,.opt .dot { width:22px; height:22px; flex:none; display:flex; align-items:center;
+    justify-content:center; }
+  .opt .box svg,.opt .dot svg { width:22px; height:22px; }
+  .opt .label { font-size:17px; }
+  ph { color:var(--muted); }
+  input::placeholder, textarea::placeholder { color:var(--muted); }
+
+  .statusval { color:var(--green-light); font-size:16px; display:flex; align-items:center; gap:6px; }
+</style>
+</head>
+<body>
+
+<!-- Splash -->
+<div id="splash">
+  <svg class="lasso" width="92" height="92" viewBox="0 0 100 100" aria-hidden="true">
+    <ellipse cx="50" cy="40" rx="34" ry="25" fill="none" stroke="#fff" stroke-width="6"/>
+    <path d="M77,55 Q93,76 80,90 Q73,97 68,88" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  </svg>
+  <h1>Lawn Rangers</h1>
+  <div id="grass"></div>
+</div>
+
+<!-- Home -->
+<div class="screen">
+  <div class="nav">
+    <div class="barrow">
+      <button class="btn" onclick="openSettings()" aria-label="Settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm9 4a7 7 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 00-2-1.2L16 3H8l-.5 2.6a7 7 0 00-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 003 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1c.6.5 1.3.9 2 1.2L8 21h8l.5-2.6c.7-.3 1.4-.7 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg>
+      </button>
+      <span class="navtitle"></span>
+      <button class="btn r plus" onclick="toggleMenu()" aria-label="Add">＋</button>
+    </div>
+  </div>
+  <div class="largetitle">Lawn Rangers</div>
+  <div class="list" id="home"></div>
+</div>
+
+<div id="scrim" onclick="closeMenu()"></div>
+<div id="menu">
+  <button onclick="openLawn()"><span>Log a Lawn</span>
+    <svg width="20" height="20" viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.2 5 21h2c.4-2.6 1.4-5 3-7-1 3-1 5-1 5s4-1 6-4 3-7 3-7-4-1-1-1z"/></svg></button>
+  <button onclick="openExpense()"><span>Log an Expense</span>
+    <svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 1a11 11 0 100 22 11 11 0 000-22zm.7 17v1.3h-1.3V18c-1.6-.1-2.9-1-3-2.6h1.5c.1.8.7 1.3 1.8 1.3 1 0 1.6-.5 1.6-1.2 0-.7-.5-1-1.8-1.3-1.8-.4-3-1-3-2.6 0-1.3 1-2.2 2.4-2.4V8h1.3v1.2c1.4.2 2.4 1.1 2.5 2.5h-1.5c-.1-.7-.6-1.2-1.5-1.2-1 0-1.5.5-1.5 1.1 0 .6.5.9 1.8 1.2 1.9.4 3 1.1 3 2.7 0 1.4-1 2.3-2.6 2.5z"/></svg></button>
+</div>
+
+<!-- Log a Lawn -->
+<div class="sheet" id="lawnSheet">
+  <div class="snav"><div class="barrow">
+    <button class="cancel" onclick="closeLawn()">Cancel</button>
+    <span class="t">Log a Lawn</span>
+    <button class="submit" id="lawnSubmit" onclick="submitLawn()">Submit</button>
+  </div></div>
+  <div class="sbody">
+    <div class="ghead" id="whereHead">WHERE? *</div>
+    <div class="group">
+      <div class="cell"><div class="selrow"><span>Where?</span>
+        <select id="where" onchange="onWhere()"></select></div></div>
+      <div class="cell" id="whereCustomCell" style="display:none"><input type="text" id="whereCustom" placeholder="New customer name"/></div>
+    </div>
+
+    <div class="ghead">WHO? *</div>
+    <div class="group" id="whoList"></div>
+    <div class="group" id="whoOtherWrap" style="display:none"><div class="cell"><input type="text" id="whoOther" placeholder="Other"/></div></div>
+
+    <div class="ghead">HOW MUCH? ENTER 'STANDARD' OR THE ACTUAL RATE. *</div>
+    <div class="group"><div class="cell"><input type="text" id="howMuch" value="Standard"/></div></div>
+    <div class="gfoot">Leave as "Standard" to use the customer's standard rate, or type the actual amount.</div>
+    <div style="height:14px"></div>
+
+    <div class="ghead">CUSTOMER PAID? *</div>
+    <div class="group" id="custPaid"></div>
+
+    <div class="ghead">TEAMMEMBER PAID? *</div>
+    <div class="group" id="teamPaid"></div>
+
+    <div class="ghead">NOTE. INCLUDE ADDRESS &amp; PHONE FOR NEW CUSTOMERS</div>
+    <div class="group"><div class="cell"><textarea id="note" placeholder="Your answer"></textarea></div></div>
+  </div>
+</div>
+
+<!-- Log an Expense -->
+<div class="sheet" id="expenseSheet">
+  <div class="snav"><div class="barrow">
+    <button class="cancel" onclick="closeExpense()">Cancel</button>
+    <span class="t">Log an Expense</span>
+    <button class="submit" id="expSubmit" onclick="submitExpense()">Submit</button>
+  </div></div>
+  <div class="sbody">
+    <div class="gfoot" style="padding:0 4px 14px">This is to record any overhead purchases.</div>
+    <div class="ghead">EXPENSES *</div>
+    <div class="group"><div class="cell"><input type="text" id="expName" placeholder="Your answer"/></div></div>
+    <div class="ghead">AMOUNT *</div>
+    <div class="group"><div class="cell"><input type="text" id="expAmount" inputmode="decimal" placeholder="Your answer"/></div></div>
+    <div class="ghead">COMMENT</div>
+    <div class="group"><div class="cell"><textarea id="expComment" placeholder="Your answer"></textarea></div></div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="sheet" id="settingsSheet">
+  <div class="snav"><div class="barrow">
+    <button class="cancel" onclick="closeSettings()">Cancel</button>
+    <span class="t">Settings</span>
+    <button class="submit" onclick="closeSettings()">Save</button>
+  </div></div>
+  <div class="sbody">
+    <div class="ghead">GOOGLE SHEETS WEB APP URL</div>
+    <div class="group"><div class="cell"><input type="text" id="webUrl" placeholder="https://script.google.com/macros/s/…/exec"/></div></div>
+    <div class="gfoot">The app ships with a built-in backend URL, so this is optional. Enter a URL here only to override the default on this device; leave blank to use the built-in one.</div>
+    <div style="height:18px"></div>
+    <div class="group"><div class="cell"><div class="selrow"><span>Status</span>
+      <span class="statusval" id="statusVal">✓ Connected (built-in)</span></div></div></div>
+  </div>
+</div>
+
+<script>
+  const TEAM = ["Grantham","Gresham","Caleb","Oliver"];
+  const SEED = ["Adam","Anderson","Beverly","Brian","Corbit","Eldridge","Harrington","Helen Lee",
+    "Holland","Hunter","Johnson","King","Larry","Matthews","Nancy Patton","Retzer","Schreck","Yatish"];
+  const STORE = "lrPreviewEntries";
+  let entries = load(), whoSel = new Set(), custPaid = "", teamPaid = "";
+  function load(){ try { return JSON.parse(localStorage.getItem(STORE))||[]; } catch(e){ return []; } }
+  function save(){ localStorage.setItem(STORE, JSON.stringify(entries)); }
+  const $ = id => document.getElementById(id);
+
+  // Icons (match SF Symbols person / person.2)
+  const PERSON = '<svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z"/></svg>';
+  const PEOPLE = '<svg width="17" height="14" viewBox="0 0 24 24"><path d="M8 12a4 4 0 100-8 4 4 0 000 8zm8 0a4 4 0 100-8 4 4 0 000 8zM8 14c-4 0-7 2-7 5v1h9v-1c0-1.6.6-2.9 1.6-3.9C10.7 14.4 9.4 14 8 14zm8 0c-.5 0-1 0-1.5.1C15.4 15.2 16 16.5 16 18v1h7v-1c0-3-3-5-7-5z"/></svg>';
+  const CHECK_ON = '<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="#2E7D32"/><path d="M7 12.5l3 3 7-7" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const CHECK_OFF = '<svg viewBox="0 0 24 24"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="4.6" fill="none" stroke="#8e8e93" stroke-width="1.8"/></svg>';
+  const RADIO_ON = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#2E7D32" stroke-width="2"/><circle cx="12" cy="12" r="5.5" fill="#2E7D32"/></svg>';
+  const RADIO_OFF = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2" fill="none" stroke="#8e8e93" stroke-width="1.8"/></svg>';
+
+  // Splash grass
+  function buildGrass(){ const w=Math.max(innerWidth,320),count=30,h=88,sp=w/(count-1); let b="";
+    for(let i=0;i<count;i++){ const x=i*sp,bh=h*(0.45+0.55*Math.abs(Math.sin(i*1.27))),lean=Math.sin(i*0.9)*16,sh=i%2?"#2b8a36":"#1a6322";
+      b+=`<path fill="${sh}" d="M${(x-7).toFixed(1)},${h} Q${(x-2).toFixed(1)},${(h-bh*.5).toFixed(1)} ${(x+lean).toFixed(1)},${(h-bh).toFixed(1)} Q${(x+2).toFixed(1)},${(h-bh*.5).toFixed(1)} ${(x+7).toFixed(1)},${h} Z"/>`; }
+    $("grass").innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${b}</svg>`; }
+  buildGrass();
+  setTimeout(()=>$("splash").classList.add("hide"), 1800);
+
+  // Menu
+  function toggleMenu(){ $("menu").classList.toggle("show"); $("scrim").classList.toggle("show"); }
+  function closeMenu(){ $("menu").classList.remove("show"); $("scrim").classList.remove("show"); }
+
+  // Where / Who builders
+  function customers(){ return [...new Set([...SEED, ...entries.filter(e=>e.type==="lawn").map(e=>e.where)])].sort(); }
+  function buildWhere(){ $("where").innerHTML='<option value="">Choose</option>'+
+    customers().map(c=>`<option>${c}</option>`).join("")+'<option value="__other__">New customer…</option>'; }
+  function onWhere(){ $("whereCustomCell").style.display = $("where").value==="__other__"?"block":"none"; valLawn(); }
+  function buildWho(){ const L=$("whoList"); L.innerHTML="";
+    [...TEAM,"Other"].forEach(n=>{ const d=document.createElement("div"); d.className="cell tap";
+      d.innerHTML=`<div class="opt"><span class="box">${CHECK_OFF}</span><span class="label">${n}</span></div>`;
+      d.onclick=()=>{ const on=d.classList.toggle("on"); d.querySelector(".box").innerHTML=on?CHECK_ON:CHECK_OFF;
+        if(n==="Other"){ $("whoOtherWrap").style.display=on?"block":"none"; } else { on?whoSel.add(n):whoSel.delete(n); } valLawn(); };
+      L.appendChild(d); }); }
+  function buildRadios(id,which){ const c=$(id); c.innerHTML="";
+    ["Paid","Unpaid"].forEach(o=>{ const d=document.createElement("div"); d.className="cell tap";
+      d.innerHTML=`<div class="opt"><span class="dot">${RADIO_OFF}</span><span class="label">${o}</span></div>`;
+      d.onclick=()=>{ [...c.children].forEach(x=>x.querySelector(".dot").innerHTML=RADIO_OFF); d.querySelector(".dot").innerHTML=RADIO_ON;
+        if(which==="c")custPaid=o; else teamPaid=o; valLawn(); }; c.appendChild(d); }); }
+
+  function openLawn(){ closeMenu(); resetLawn(); $("lawnSheet").classList.add("show"); }
+  function closeLawn(){ $("lawnSheet").classList.remove("show"); }
+  function resetLawn(){ whoSel=new Set(); custPaid=""; teamPaid="";
+    buildWhere(); buildWho(); buildRadios("custPaid","c"); buildRadios("teamPaid","t");
+    $("whereCustom").value=""; $("whereCustomCell").style.display="none";
+    $("whoOther").value=""; $("whoOtherWrap").style.display="none";
+    $("howMuch").value="Standard"; $("note").value=""; valLawn(); }
+  function openExpense(){ closeMenu(); ["expName","expAmount","expComment"].forEach(i=>$(i).value=""); valExp(); $("expenseSheet").classList.add("show"); }
+  function closeExpense(){ $("expenseSheet").classList.remove("show"); }
+  function openSettings(){ $("settingsSheet").classList.add("show"); }
+  function closeSettings(){ $("settingsSheet").classList.remove("show"); }
+
+  function rWhere(){ const v=$("where").value; return v==="__other__"?$("whereCustom").value.trim():v; }
+  function rWho(){ const a=[...whoSel], o=$("whoOther").value.trim();
+    const otherOn=[...$("whoList").children].pop()?.classList.contains("on"); if(otherOn&&o)a.push(o); return a; }
+  function valLawn(){ $("lawnSubmit").disabled = !(rWhere() && rWho().length && custPaid && teamPaid); }
+  function valExp(){ $("expSubmit").disabled = !($("expName").value.trim() && $("expAmount").value.trim()); }
+  document.addEventListener("input",e=>{ if(["whereCustom","whoOther"].includes(e.target.id))valLawn();
+    if(["expName","expAmount"].includes(e.target.id))valExp(); });
+
+  function submitLawn(){ const where=rWhere(), who=rWho(), hm=$("howMuch").value.trim()||"Standard";
+    entries.unshift({type:"lawn",ts:Date.now(),where,who,howMuch:hm,custPaid,teamPaid,note:$("note").value.trim()});
+    save(); render(); closeLawn(); }
+  function submitExpense(){ entries.unshift({type:"expense",ts:Date.now(),
+    name:$("expName").value.trim(),amount:$("expAmount").value.trim(),comment:$("expComment").value.trim()});
+    save(); render(); closeExpense(); }
+
+  function dstr(ts){ return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+  function render(){ const h=$("home"); const L=entries.filter(e=>e.type==="lawn"), E=entries.filter(e=>e.type==="expense");
+    if(!entries.length){
+      h.innerHTML=`<div class="empty">
+        <svg width="56" height="56" viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 012 2v10h-5l-1 2h-4l-1-2H3V5a2 2 0 012-2zm-2 14h6l1 2h4l1-2h6v2a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        <h2>No entries yet</h2><p>Tap the + button in the top-right to log a lawn or an expense.</p></div>`;
+      return;
+    }
+    let html="";
+    if(L.length){ html+=`<div class="ghead">LAWNS</div><div class="group">`;
+      L.forEach(e=>{ html+=`<div class="cell entry">
+        <div class="top"><span class="ttl">${e.where||"Lawn"}</span><span class="rate">${e.howMuch}</span></div>
+        <div class="sub"><span>${dstr(e.ts)}</span><span>${e.who.join(", ")}</span></div>
+        <div class="paid">
+          <span class="x">${PERSON} Customer: ${e.custPaid}</span>
+          <span class="x">${PEOPLE} Team: ${e.teamPaid}</span></div></div>`; });
+      html+=`</div>`; }
+    if(E.length){ html+=`<div class="ghead">EXPENSES</div><div class="group">`;
+      E.forEach(e=>{ html+=`<div class="cell entry">
+        <div class="top"><span class="ttl">${e.name||"Expense"}</span><span class="rate">${e.amount}</span></div>
+        <div class="sub"><span>${dstr(e.ts)}</span><span>${e.comment||""}</span></div></div>`; });
+      html+=`</div>`; }
+    h.innerHTML=html;
+  }
+  render();
+</script>
+</body>
+</html>

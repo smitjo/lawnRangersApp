@@ -64,6 +64,21 @@ Run it via:
   `https://raw.githack.com/smitjo/lawnRangersApp/main/tools/iphone-simulator.html`
 - **GitHub Pages:** `https://smitjo.github.io/lawnRangersApp/tools/iphone-simulator.html`
 
+## Faithful web preview
+
+`tools/app-preview.html` is a high-fidelity HTML build of the app, made by
+mirroring the actual SwiftUI source screen-for-screen: the iOS grouped-form
+look, the exact Home rows (where, date, rate, and Customer/Team paid with
+person / person.2 icons — no in-app split math, matching `HomeView`), the
+required-field markers, checkbox/radio styles, the Settings screen, and the
+grass + lasso splash. Entries persist in the browser.
+
+Run it via:
+
+- **Instant (public repo):**
+  `https://raw.githack.com/smitjo/lawnRangersApp/main/tools/app-preview.html`
+- **GitHub Pages:** `https://smitjo.github.io/lawnRangersApp/tools/app-preview.html`
+
 ## Forms
 
 **Log a Lawn** (writes sheet columns A–G; timestamp is automatic):
