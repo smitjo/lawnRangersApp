@@ -8,7 +8,7 @@ import Foundation
 enum BackendConfig {
     /// Built-in default Web App URL, baked into the app.
     /// Paste your Apps Script `/exec` URL here.
-    static let defaultWebAppURLString = "" // <-- paste the /exec URL here
+    static let defaultWebAppURLString = "https://script.google.com/macros/s/AKfycbyZ3l-MBvJI_93QvQHTUIYVgX03o7i-CaPYL9QvKa5xq8l6YosYFTpc7VGPRQfatNUj/exec"
 
     private static let urlKey = "sheetsWebAppURL"
 
