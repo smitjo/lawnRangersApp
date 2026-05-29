@@ -169,9 +169,8 @@ function setupSpreadsheet() {
     rates.getRange(2, 1, rows.length, 2).setValues(rows);
   }
 
-  SpreadsheetApp.getUi().alert(
-    'Setup complete.\n\nNext:\n1) Fill in the Rates tab.\n2) Deploy → New deployment → Web app.\n3) Paste the /exec URL into the app Settings.'
-  );
+  // Done. (Logged instead of a popup so the run never waits on a dialog.)
+  Logger.log('Setup complete. Next: fill in the Rates tab, then Deploy → New deployment → Web app, and paste the /exec URL into the app Settings.');
 }
 
 // ── helper ──────────────────────────────────────────────────────────────────
