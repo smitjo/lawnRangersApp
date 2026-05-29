@@ -50,6 +50,20 @@ If the repo is **private** (or you hit the unauthenticated rate limit), tap the
 🔑 button and paste a GitHub token with read-only **Contents** access — it's
 stored only in your browser.
 
+## On-screen iPhone simulator
+
+`tools/iphone-simulator.html` renders the app inside an iPhone device frame
+(Dynamic Island, status bar, home indicator) so you can visualize and tap
+through it from a phone with no Xcode — splash (grass + lasso), home, the `+`
+menu, both forms, and the live split math. It's a visual mock (entries save in
+the browser; nothing is sent to the sheet).
+
+Run it via:
+
+- **Instant (public repo):**
+  `https://raw.githack.com/smitjo/lawnRangersApp/main/tools/iphone-simulator.html`
+- **GitHub Pages:** `https://smitjo.github.io/lawnRangersApp/tools/iphone-simulator.html`
+
 ## Forms
 
 **Log a Lawn** (writes sheet columns A–G; timestamp is automatic):

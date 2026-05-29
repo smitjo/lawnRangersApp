@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#000000" />
+<title>Lawn Rangers — iPhone Simulator</title>
+<style>
+  :root {
+    --green:#2E7D32; --green-light:#3a9a40; --bg:#000; --card:#1c1c1e; --card2:#2c2c2e;
+    --text:#fff; --muted:#9a9a9e; --line:#38383a; --red:#ff453a;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:#0a0a0a;
+    background-image:radial-gradient(circle at 50% 0%, #1d1d1f, #0a0a0a);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .stage { min-height:100dvh; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+
+  /* Device */
+  .device { width:390px; height:844px; flex:none; position:relative; transform-origin:center;
+    background:#000; border-radius:56px;
+    box-shadow:0 0 0 13px #1b1b1d, 0 0 0 15px #000, 0 26px 70px rgba(0,0,0,.7); }
+  .screen { position:absolute; inset:0; border-radius:56px; overflow:hidden;
+    display:flex; flex-direction:column; background:var(--bg); }
+  .island { position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:120px; height:34px; background:#000; border-radius:20px; z-index:60; }
+  .statusbar { height:52px; flex:none; display:flex; align-items:flex-end;
+    justify-content:space-between; padding:0 30px 7px; color:#fff; font-size:15px;
+    font-weight:600; position:relative; z-index:50; }
+  .statusbar .ic { display:flex; align-items:center; gap:6px; }
+  .statusbar svg { display:block; }
+  .homeind { position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+    width:134px; height:5px; border-radius:3px; background:rgba(255,255,255,.5); z-index:70; }
+  .appwrap { position:relative; flex:1; overflow:hidden; background:var(--bg); }
+
+  /* Splash */
+  #splash { position:absolute; inset:0; z-index:40; overflow:hidden;
+    background:linear-gradient(to bottom,#3a9a40,var(--green));
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    transition:opacity .5s ease; }
+  #splash.hide { opacity:0; pointer-events:none; }
+  #splash h1 { font-size:34px; font-weight:800; margin:0; color:#fff; }
+  #grass { position:absolute; left:0; right:0; bottom:0; line-height:0; }
+
+  /* Nav */
+  .navbar { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px 10px; border-bottom:1px solid var(--line); background:var(--bg); }
+  .navbar .title { font-size:22px; font-weight:800; color:var(--text); }
+  .iconbtn { background:none; border:none; color:var(--green-light); font-size:24px;
+    line-height:1; padding:2px 6px; cursor:pointer; }
+  .content { position:absolute; top:55px; bottom:0; left:0; right:0; overflow-y:auto;
+    -webkit-overflow-scrolling:touch; padding:12px; }
+
+  #menu { position:absolute; right:10px; top:52px; background:var(--card2);
+    border:1px solid var(--line); border-radius:14px; overflow:hidden; z-index:30;
+    min-width:210px; box-shadow:0 12px 30px rgba(0,0,0,.5); display:none; }
+  #menu.show { display:block; }
+  #menu button { display:flex; gap:10px; width:100%; background:none; border:none;
+    color:var(--text); padding:14px 16px; font-size:16px; text-align:left; cursor:pointer; }
+  #menu button:first-child { border-bottom:1px solid var(--line); }
+  #scrim { position:absolute; inset:0; z-index:25; display:none; }
+  #scrim.show { display:block; }
+
+  .empty { text-align:center; color:var(--muted); margin-top:70px; }
+  .empty .big { font-size:40px; }
+  .section-title { color:var(--muted); font-size:12px; text-transform:uppercase;
+    letter-spacing:.5px; margin:16px 4px 8px; }
+  .card { background:var(--card); border-radius:14px; padding:12px 14px; margin-bottom:9px; }
+  .card .r1 { display:flex; justify-content:space-between; align-items:baseline; }
+  .card .nm { font-weight:700; font-size:16px; }
+  .card .rate { font-weight:700; color:var(--green-light); }
+  .card .meta { color:var(--muted); font-size:12px; margin-top:3px; }
+  .card .calc { margin-top:9px; padding-top:9px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--muted); display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; }
+  .card .calc b { color:var(--text); }
+  .pill { display:inline-block; font-size:10px; padding:2px 7px; border-radius:20px; margin-left:5px; }
+  .pill.paid { background:rgba(46,125,50,.25); color:#7ee08a; }
+  .pill.unpaid { background:rgba(255,69,58,.2); color:#ff8a82; }
+
+  /* Sheets */
+  .sheet { position:absolute; inset:0; background:var(--bg); z-index:35;
+    transform:translateY(100%); transition:transform .3s ease; display:flex; flex-direction:column; }
+  .sheet.show { transform:translateY(0); }
+  .sheet .snav { display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; border-bottom:1px solid var(--line); }
+  .sheet .snav .t { font-weight:700; font-size:16px; }
+  .sheet .snav button { background:none; border:none; color:var(--green-light); font-size:16px;
+    cursor:pointer; padding:4px; }
+  .sheet .snav button:disabled { color:var(--muted); opacity:.5; }
+  .sbody { overflow-y:auto; padding:6px 16px 30px; flex:1; -webkit-overflow-scrolling:touch; }
+  .field { margin-top:18px; }
+  .field > .q { display:block; font-size:15px; font-weight:600; margin-bottom:9px; }
+  .req { color:var(--red); }
+  .hint { color:var(--muted); font-size:12px; margin-top:7px; }
+  input[type=text], select, textarea { width:100%; background:var(--card);
+    border:1px solid var(--line); color:var(--text); border-radius:11px; padding:12px;
+    font-size:16px; font-family:inherit; }
+  textarea { min-height:64px; resize:vertical; }
+  select { appearance:none; }
+  .check,.radio { display:flex; align-items:center; gap:11px; background:var(--card);
+    border:1px solid var(--line); border-radius:11px; padding:11px 13px; margin-bottom:7px; cursor:pointer; }
+  .check .box,.radio .dot { width:21px; height:21px; border:2px solid var(--muted); flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:13px; color:#fff; }
+  .check .box { border-radius:6px; }
+  .radio .dot { border-radius:50%; }
+  .check.on .box { background:var(--green); border-color:var(--green); }
+  .radio.on .dot { border-color:var(--green); }
+  .radio.on .dot::after { content:''; width:11px; height:11px; border-radius:50%; background:var(--green); }
+  .desc { color:var(--muted); font-size:14px; margin-top:6px; }
+  .statusrow { display:flex; justify-content:space-between; align-items:center;
+    background:var(--card); border:1px solid var(--line); border-radius:11px; padding:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="device" id="device">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="statusbar">
+        <span id="clock">9:41</span>
+        <span class="ic">
+          <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#fff"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#fff"/><rect x="10" y="2" width="3" height="10" rx="1" fill="#fff"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#fff" opacity=".4"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.5c2.3 0 4.4.9 6 2.4l-1.4 1.5A6.6 6.6 0 008 4.5 6.6 6.6 0 003.4 6.4L2 4.9A8.6 8.6 0 018 2.5zm0 3.6c1.3 0 2.5.5 3.4 1.4L8 11 4.6 7.5A4.8 4.8 0 018 6.1z" fill="#fff"/></svg>
+          <svg width="26" height="12" viewBox="0 0 26 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3" fill="none" stroke="#fff" opacity=".5"/><rect x="2" y="2" width="18" height="8" rx="1.5" fill="#fff"/><rect x="23" y="4" width="2" height="4" rx="1" fill="#fff" opacity=".5"/></svg>
+        </span>
+      </div>
+
+      <div class="appwrap" id="appwrap">
+        <!-- Splash -->
+        <div id="splash">
+          <svg class="lasso" width="84" height="84" viewBox="0 0 100 100" aria-hidden="true">
+            <ellipse cx="50" cy="40" rx="34" ry="25" fill="none" stroke="#fff" stroke-width="6"/>
+            <path d="M77,55 Q93,76 80,90 Q73,97 68,88" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+          <h1>Lawn Rangers</h1>
+          <div id="grass"></div>
+        </div>
+
+        <!-- Home -->
+        <div class="navbar">
+          <button class="iconbtn" onclick="openSettings()" title="Settings">⚙︎</button>
+          <span class="title">Lawn Rangers</span>
+          <button class="iconbtn" onclick="toggleMenu()">＋</button>
+        </div>
+        <div id="scrim" onclick="closeMenu()"></div>
+        <div id="menu">
+          <button onclick="openLawn()">🍃&nbsp; Log a Lawn</button>
+          <button onclick="openExpense()">＄&nbsp; Log an Expense</button>
+        </div>
+        <div class="content" id="home"></div>
+
+        <!-- Log a Lawn -->
+        <div class="sheet" id="lawnSheet">
+          <div class="snav">
+            <button onclick="closeLawn()">Cancel</button><span class="t">Log a Lawn</span>
+            <button id="lawnSubmit" onclick="submitLawn()">Submit</button>
+          </div>
+          <div class="sbody">
+            <div class="field"><span class="q">Where? <span class="req">*</span></span>
+              <select id="where" onchange="onWhere()"></select>
+              <input type="text" id="whereCustom" placeholder="New customer name" style="display:none;margin-top:8px"/></div>
+            <div class="field"><span class="q">Who? <span class="req">*</span></span>
+              <div id="whoList"></div>
+              <input type="text" id="whoOther" placeholder="Other" style="display:none;margin-top:4px"/></div>
+            <div class="field"><span class="q">How much? Enter 'Standard' or the actual rate. <span class="req">*</span></span>
+              <input type="text" id="howMuch" value="Standard"/>
+              <div class="hint">Leave as "Standard" to use the customer's standard rate, or type the actual amount.</div></div>
+            <div class="field"><span class="q">Customer paid? <span class="req">*</span></span><div id="custPaid"></div></div>
+            <div class="field"><span class="q">Teammember paid? <span class="req">*</span></span><div id="teamPaid"></div></div>
+            <div class="field"><span class="q">Note. Include Address &amp; Phone for new customers</span>
+              <textarea id="note" placeholder="Your answer"></textarea></div>
+          </div>
+        </div>
+
+        <!-- Log an Expense -->
+        <div class="sheet" id="expenseSheet">
+          <div class="snav">
+            <button onclick="closeExpense()">Cancel</button><span class="t">Log an Expense</span>
+            <button id="expSubmit" onclick="submitExpense()">Submit</button>
+          </div>
+          <div class="sbody">
+            <div class="desc">This is to record any overhead purchases.</div>
+            <div class="field"><span class="q">Expenses <span class="req">*</span></span><input type="text" id="expName" placeholder="Your answer"/></div>
+            <div class="field"><span class="q">Amount <span class="req">*</span></span><input type="text" id="expAmount" inputmode="decimal" placeholder="Your answer"/></div>
+            <div class="field"><span class="q">Comment</span><textarea id="expComment" placeholder="Your answer"></textarea></div>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="sheet" id="settingsSheet">
+          <div class="snav"><button onclick="closeSettings()">Done</button><span class="t">Settings</span><span style="width:40px"></span></div>
+          <div class="sbody">
+            <div class="field"><span class="q">Backend</span>
+              <div class="statusrow"><span>Status</span><span style="color:#7ee08a">✓ Connected (built-in)</span></div>
+              <div class="hint">Entries post to the Google Sheet via the built-in backend URL. (In this simulator nothing is sent — it just shows the app's behavior.)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="homeind"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TEAM = ["Grantham","Gresham","Caleb","Oliver"];
+  const RATES = {"Adam":40,"Anderson":40,"Beverly":50,"Brian":30,"Corbit":55,"Eldridge":45,
+    "Harrington":40,"Helen Lee":40,"Holland":40,"Hunter":30,"Johnson":35,"King":30,"Larry":30,
+    "Matthews":55,"Nancy Patton":60,"Retzer":40,"Schreck":40,"Yatish":50};
+  const DEFAULT_STANDARD = 40, STORE = "lrSimEntries";
+  let entries = load(), whoSel = new Set(), custPaid = "", teamPaid = "";
+  function load(){ try { return JSON.parse(localStorage.getItem(STORE))||[]; } catch(e){ return []; } }
+  function save(){ localStorage.setItem(STORE, JSON.stringify(entries)); }
+
+  // Device fit + clock + grass
+  function fit(){
+    const d = document.getElementById("device");
+    const s = Math.min((innerWidth-12)/390, (innerHeight-12)/844, 1);
+    d.style.transform = `scale(${s})`;
+  }
+  addEventListener("resize", fit); fit();
+  function tick(){ const n=new Date(); let h=n.getHours()%12||12;
+    document.getElementById("clock").textContent = h+":"+String(n.getMinutes()).padStart(2,"0"); }
+  tick(); setInterval(tick, 10000);
+  function buildGrass(){
+    const w = document.getElementById("appwrap").clientWidth, count=22, h=82, sp=w/(count-1);
+    let b=""; for(let i=0;i<count;i++){ const x=i*sp, bh=h*(0.45+0.55*Math.abs(Math.sin(i*1.27))),
+      lean=Math.sin(i*0.9)*15, sh=i%2?"#2b8a36":"#1a6322";
+      b+=`<path fill="${sh}" d="M${(x-6).toFixed(1)},${h} Q${(x-2).toFixed(1)},${(h-bh*0.5).toFixed(1)} ${(x+lean).toFixed(1)},${(h-bh).toFixed(1)} Q${(x+2).toFixed(1)},${(h-bh*0.5).toFixed(1)} ${(x+6).toFixed(1)},${h} Z"/>`; }
+    document.getElementById("grass").innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${b}</svg>`;
+  }
+  buildGrass();
+  setTimeout(()=>document.getElementById("splash").classList.add("hide"), 1800);
+
+  // Menu
+  function toggleMenu(){ menu.classList.toggle("show"); scrim.classList.toggle("show"); }
+  function closeMenu(){ menu.classList.remove("show"); scrim.classList.remove("show"); }
+  const menu=document.getElementById("menu"), scrim=document.getElementById("scrim");
+
+  // Where
+  function customers(){ return [...new Set([...Object.keys(RATES), ...entries.filter(e=>e.type==="lawn").map(e=>e.where)])].sort(); }
+  function buildWhere(){ document.getElementById("where").innerHTML =
+    '<option value="">Choose</option>'+customers().map(c=>`<option>${c}</option>`).join("")+'<option value="__other__">New customer…</option>'; }
+  function onWhere(){ const v=document.getElementById("where").value;
+    document.getElementById("whereCustom").style.display=v==="__other__"?"block":"none"; valLawn(); }
+  function buildWho(){ const L=document.getElementById("whoList"); L.innerHTML="";
+    [...TEAM,"Other"].forEach(n=>{ const d=document.createElement("div"); d.className="check";
+      d.innerHTML=`<span class="box">✓</span><span>${n}</span>`;
+      d.onclick=()=>{ d.classList.toggle("on");
+        if(n==="Other"){ document.getElementById("whoOther").style.display=d.classList.contains("on")?"block":"none"; }
+        else { whoSel.has(n)?whoSel.delete(n):whoSel.add(n); } valLawn(); };
+      L.appendChild(d); }); }
+  function buildRadios(id,which){ const c=document.getElementById(id); c.innerHTML="";
+    ["Paid","Unpaid"].forEach(o=>{ const d=document.createElement("div"); d.className="radio";
+      d.innerHTML=`<span class="dot"></span><span>${o}</span>`;
+      d.onclick=()=>{ [...c.children].forEach(x=>x.classList.remove("on")); d.classList.add("on");
+        if(which==="c")custPaid=o; else teamPaid=o; valLawn(); }; c.appendChild(d); }); }
+
+  function openLawn(){ closeMenu(); resetLawn(); document.getElementById("lawnSheet").classList.add("show"); }
+  function closeLawn(){ document.getElementById("lawnSheet").classList.remove("show"); }
+  function resetLawn(){ whoSel=new Set(); custPaid=""; teamPaid="";
+    buildWhere(); buildWho(); buildRadios("custPaid","c"); buildRadios("teamPaid","t");
+    document.getElementById("whereCustom").value=""; document.getElementById("whereCustom").style.display="none";
+    document.getElementById("whoOther").value=""; document.getElementById("whoOther").style.display="none";
+    document.getElementById("howMuch").value="Standard"; document.getElementById("note").value=""; valLawn(); }
+  function openExpense(){ closeMenu(); ["expName","expAmount","expComment"].forEach(i=>document.getElementById(i).value="");
+    valExp(); document.getElementById("expenseSheet").classList.add("show"); }
+  function closeExpense(){ document.getElementById("expenseSheet").classList.remove("show"); }
+  function openSettings(){ document.getElementById("settingsSheet").classList.add("show"); }
+  function closeSettings(){ document.getElementById("settingsSheet").classList.remove("show"); }
+
+  function rWhere(){ const v=document.getElementById("where").value;
+    return v==="__other__"?document.getElementById("whereCustom").value.trim():v; }
+  function rWho(){ const a=[...whoSel]; const o=document.getElementById("whoOther").value.trim();
+    const otherOn=[...document.querySelectorAll("#whoList .check")].pop()?.classList.contains("on");
+    if(otherOn&&o)a.push(o); return a; }
+  function valLawn(){ document.getElementById("lawnSubmit").disabled =
+    !(rWhere() && rWho().length && custPaid && teamPaid); }
+  function valExp(){ document.getElementById("expSubmit").disabled =
+    !(document.getElementById("expName").value.trim() && document.getElementById("expAmount").value.trim()); }
+  document.addEventListener("input",e=>{ if(["whereCustom","whoOther"].includes(e.target.id))valLawn();
+    if(["expName","expAmount"].includes(e.target.id))valExp(); });
+
+  function computeRate(where,hm){ hm=(hm||"").trim();
+    if(hm.toLowerCase()==="standard"||hm==="") return RATES[where]!=null?RATES[where]:DEFAULT_STANDARD;
+    const n=parseFloat(hm.replace(/[^0-9.]/g,"")); return isNaN(n)?0:n; }
+  function splits(rate,who){ const head=who.length||1, per=rate*0.8/head, o={};
+    who.forEach(p=>{ if(TEAM.includes(p))o[p]=per; });
+    return {overhead:rate*0.1,depreciation:rate*0.1,perPerson:o}; }
+
+  function submitLawn(){ const where=rWhere(), who=rWho(),
+    hm=document.getElementById("howMuch").value.trim()||"Standard", rate=computeRate(where,hm);
+    entries.unshift({type:"lawn",ts:Date.now(),where,who,rate,custPaid,teamPaid,
+      note:document.getElementById("note").value.trim(),calc:splits(rate,who)});
+    save(); render(); closeLawn(); }
+  function submitExpense(){ entries.unshift({type:"expense",ts:Date.now(),
+    name:document.getElementById("expName").value.trim(),
+    amount:document.getElementById("expAmount").value.trim(),
+    comment:document.getElementById("expComment").value.trim()}); save(); render(); closeExpense(); }
+
+  function money(n){ return "$"+(Math.round(n*100)/100).toFixed(2); }
+  function dstr(ts){ return new Date(ts).toLocaleDateString(); }
+  function render(){ const h=document.getElementById("home");
+    const L=entries.filter(e=>e.type==="lawn"), E=entries.filter(e=>e.type==="expense");
+    if(!entries.length){ h.innerHTML=`<div class="empty"><div class="big">🗒️</div><h3>No entries yet</h3>
+      <p>Tap ＋ in the top-right to log a lawn or an expense.</p></div>`; return; }
+    let html="";
+    if(L.length){ html+=`<div class="section-title">Lawns</div>`;
+      L.forEach(e=>{ const c=e.calc,
+        ppl=Object.keys(c.perPerson).map(p=>`<span>${p}: <b>${money(c.perPerson[p])}</b></span>`).join("");
+        html+=`<div class="card"><div class="r1"><span class="nm">${e.where||"Lawn"}</span><span class="rate">${money(e.rate)}</span></div>
+          <div class="meta">${dstr(e.ts)} · ${e.who.join(", ")}
+            <span class="pill ${e.custPaid==='Paid'?'paid':'unpaid'}">Cust ${e.custPaid}</span>
+            <span class="pill ${e.teamPaid==='Paid'?'paid':'unpaid'}">Team ${e.teamPaid}</span></div>
+          <div class="calc">${ppl}<span>Overhead: <b>${money(c.overhead)}</b></span>
+            <span>Depreciation: <b>${money(c.depreciation)}</b></span></div>
+          ${e.note?`<div class="meta">📝 ${e.note}</div>`:""}</div>`; }); }
+    if(E.length){ html+=`<div class="section-title">Expenses</div>`;
+      E.forEach(e=>{ html+=`<div class="card"><div class="r1"><span class="nm">${e.name||"Expense"}</span>
+        <span class="rate">${e.amount?("$"+e.amount.replace(/[^0-9.]/g,"")):""}</span></div>
+        <div class="meta">${dstr(e.ts)}${e.comment?" · "+e.comment:""}</div></div>`; }); }
+    h.innerHTML=html;
+  }
+  render();
+</script>
+</body>
+</html>
