@@ -40,13 +40,28 @@ and also grows automatically with any customer you enter in the app.
 The app is wired to post each entry to a Google Apps Script Web App, but stays
 in **local-only** mode until you give it a URL.
 
-1. Open the target Google Sheet → **Extensions → Apps Script**.
-2. Paste the contents of [`backend/Code.gs`](backend/Code.gs) into `Code.gs`.
-3. Set `LAWN_TAB` and `EXPENSE_TAB` to your tab names.
-4. **Deploy → New deployment → Web app**, *Execute as: Me*, *Who has access: Anyone*.
-5. Copy the Web app `/exec` URL.
-6. In the app, tap the **gear** (top-left) → paste the URL → **Save**.
+1. Create (or open) the Google Sheet you want to use.
+2. **Extensions → Apps Script**; delete the sample, paste in [`backend/Code.gs`](backend/Code.gs).
+3. In the function dropdown pick **`setupSpreadsheet`** and click **Run** (authorize
+   when asked). This builds three tabs:
+   - **Lawn Log** — Timestamp, Where?, Who?, How much?, Customer paid?,
+     Teammember paid?, Note, then the calculated columns Rate, Grantham, Gresham,
+     Caleb, Oliver, Overhead, Depreciation, with **Total Earned** / **Unpaid
+     amount** summary rows on top (like the original sheet).
+   - **Overhead Expense** — Timestamp, Expenses, Amount, Comment.
+   - **Rates** — Customer → Standard Rate lookup (seeded with customer names).
+4. Open the **Rates** tab and fill in each customer's standard rate. This is what
+   the form's "Standard" value looks up.
+5. **Deploy → New deployment → Web app**, *Execute as: Me*, *Who has access: Anyone*.
+6. Copy the Web app `/exec` URL.
+7. In the app, tap the **gear** (top-left) → paste the URL → **Save**.
 
-After that, every submission is appended to the sheet in the same column order
-the Forms use. The computed columns (Rate, splits, Overhead, Depreciation) are
-spreadsheet formulas — make sure they fill down to new rows.
+After that, every submission is appended to the right tab. For lawn rows the
+script fills in the calculated columns automatically using:
+Rate × 0.8 ÷ headcount per teammate, Rate × 0.1 overhead, Rate × 0.1 depreciation.
+
+## Appearance
+
+The app runs in **dark mode** (forced via `.preferredColorScheme(.dark)` in
+`LawnRangersApp.swift`). The splash is the brand green with the "Lawn Rangers"
+wordmark.
