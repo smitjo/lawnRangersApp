@@ -92,8 +92,57 @@ function doPost(e) {
   }
 }
 
-function doGet() {
-  return json({ result: 'ok', message: 'Lawn Rangers backend is live.' });
+function doGet(e) {
+  var callback = (e && e.parameter) ? e.parameter.callback : null;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var payload = { lawns: [], expenses: [] };
+
+  try {
+    var lawn = ss.getSheetByName(LAWN_TAB);
+    if (lawn && lawn.getLastRow() >= FIRST_DATA_ROW) {
+      var n = lawn.getLastRow() - FIRST_DATA_ROW + 1;
+      var rows = lawn.getRange(FIRST_DATA_ROW, 1, n, 14).getValues();
+      rows.forEach(function (r) {
+        if (!r[1] && !r[3]) return; // skip blank rows
+        payload.lawns.push({
+          timestamp: r[0],
+          where: r[1],
+          who: r[2],
+          howMuch: r[3],
+          customerPaid: r[4],
+          teammemberPaid: r[5],
+          note: r[6],
+          rate: r[7]
+        });
+      });
+    }
+
+    var ex = ss.getSheetByName(EXPENSE_TAB);
+    if (ex && ex.getLastRow() >= 2) {
+      var m = ex.getLastRow() - 1;
+      var erows = ex.getRange(2, 1, m, 4).getValues();
+      erows.forEach(function (r) {
+        if (!r[1]) return;
+        payload.expenses.push({
+          timestamp: r[0],
+          expenses: r[1],
+          amount: r[2],
+          comment: r[3]
+        });
+      });
+    }
+  } catch (err) {
+    payload.error = String(err);
+  }
+
+  var out = JSON.stringify(payload);
+  if (callback) {
+    // JSONP so a browser on another origin can read it.
+    return ContentService
+      .createTextOutput(callback + '(' + out + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(out).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ── Per-row formulas for the calculated columns (H–N) ───────────────────────
