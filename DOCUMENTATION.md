@@ -159,6 +159,17 @@ limited to rows where `Customer paid? = "Unpaid"`.
 
 The app stays in local-only mode until a valid URL is saved.
 
+### URL persistence
+
+- **In the app:** the URL is stored in `UserDefaults` (`BackendConfig`), so it
+  persists across launches, restarts, and app updates — entered once. It is only
+  cleared if the app is deleted. (For cross-device sync you could swap
+  `UserDefaults` for `NSUbiquitousKeyValueStore`; not currently implemented.)
+- **In Apps Script:** keep the same `/exec` URL when updating the script by using
+  **Deploy → Manage deployments → Edit (✏️) → Version: New version → Deploy**.
+  Using *New deployment* instead would mint a different URL and require
+  re-pasting it into the app.
+
 ---
 
 ## 8. Known follow-ups

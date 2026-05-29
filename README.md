@@ -60,6 +60,23 @@ After that, every submission is appended to the right tab. For lawn rows the
 script fills in the calculated columns automatically using:
 Rate × 0.8 ÷ headcount per teammate, Rate × 0.1 overhead, Rate × 0.1 depreciation.
 
+The app stores the URL in `UserDefaults`, so you only enter it once — it
+persists across app launches, restarts, and updates (it's only lost if the app
+is deleted).
+
+### Keeping the deployment URL stable
+
+The `/exec` URL must stay the same so the app keeps working. When you edit
+`Code.gs` later, **do not** use *New deployment* (that mints a new URL).
+Instead update the existing one:
+
+1. Apps Script → **Deploy → Manage deployments**.
+2. Select your Web app deployment → click the ✏️ (Edit).
+3. Set **Version → New version** → **Deploy**.
+
+This publishes your changes under the **same** `/exec` URL, so the app never
+needs to be reconfigured.
+
 ## Appearance
 
 The app runs in **dark mode** (forced via `.preferredColorScheme(.dark)` in
