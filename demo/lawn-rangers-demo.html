@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="theme-color" content="#2E7D32" />
+<title>Lawn Rangers</title>
+<style>
+  :root {
+    --green: #2E7D32;
+    --green-light: #3a9a40;
+    --bg: #000000;
+    --card: #1c1c1e;
+    --card2: #2c2c2e;
+    --text: #ffffff;
+    --muted: #9a9a9e;
+    --line: #38383a;
+    --red: #ff453a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none;
+  }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Splash */
+  #splash {
+    position: fixed; inset: 0; background: var(--green);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; z-index: 100; transition: opacity .5s ease;
+  }
+  #splash.hide { opacity: 0; pointer-events: none; }
+  #splash .leaf { font-size: 72px; }
+  #splash h1 { font-size: 40px; font-weight: 800; margin: 0; letter-spacing: -.5px; }
+
+  /* Nav bar */
+  .navbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top));
+    background: rgba(20,20,22,.85); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .navbar .title { font-size: 22px; font-weight: 800; }
+  .iconbtn {
+    background: none; border: none; color: var(--green-light);
+    font-size: 26px; line-height: 1; padding: 4px 8px; cursor: pointer;
+  }
+  .navbar .left { width: 44px; }
+
+  .content { padding: 16px; }
+
+  /* Menu dropdown */
+  #menu {
+    position: fixed; right: 12px; top: calc(58px + env(safe-area-inset-top));
+    background: var(--card2); border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden; z-index: 20; min-width: 220px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5); display: none;
+  }
+  #menu.show { display: block; }
+  #menu button {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    background: none; border: none; color: var(--text);
+    padding: 15px 18px; font-size: 17px; text-align: left; cursor: pointer;
+  }
+  #menu button:first-child { border-bottom: 1px solid var(--line); }
+  #menu button:active { background: var(--card); }
+  #scrim { position: fixed; inset: 0; z-index: 15; display: none; }
+  #scrim.show { display: block; }
+
+  /* Empty state */
+  .empty { text-align: center; color: var(--muted); margin-top: 80px; }
+  .empty .big { font-size: 44px; }
+
+  /* Entry cards */
+  .section-title { color: var(--muted); font-size: 13px; text-transform: uppercase;
+    letter-spacing: .5px; margin: 22px 4px 8px; }
+  .card {
+    background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  .card .row1 { display: flex; justify-content: space-between; align-items: baseline; }
+  .card .name { font-weight: 700; font-size: 17px; }
+  .card .rate { font-weight: 700; color: var(--green-light); }
+  .card .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .card .calc { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted); display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;}
+  .card .calc b { color: var(--text); font-weight: 600; }
+  .pill { display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; margin-left:6px;}
+  .pill.paid { background: rgba(46,125,50,.25); color:#7ee08a; }
+  .pill.unpaid { background: rgba(255,69,58,.2); color:#ff8a82; }
+
+  /* Form sheets */
+  .sheet {
+    position: fixed; inset: 0; background: var(--bg); z-index: 30;
+    transform: translateY(100%); transition: transform .3s ease;
+    display: flex; flex-direction: column;
+  }
+  .sheet.show { transform: translateY(0); }
+  .sheet .sheet-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top));
+    border-bottom: 1px solid var(--line);
+  }
+  .sheet .sheet-nav .t { font-weight: 700; font-size: 17px; }
+  .sheet .sheet-nav button {
+    background: none; border: none; color: var(--green-light); font-size: 17px; cursor: pointer; padding:4px;
+  }
+  .sheet .sheet-nav button:disabled { color: var(--muted); opacity:.5; }
+  .sheet .body { overflow-y: auto; padding: 8px 16px 40px; flex: 1; -webkit-overflow-scrolling: touch; }
+
+  .field { margin-top: 22px; }
+  .field > label.q { display: block; font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+  .field .req { color: var(--red); }
+  .field .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  input[type=text], select, textarea {
+    width: 100%; background: var(--card); border: 1px solid var(--line); color: var(--text);
+    border-radius: 12px; padding: 14px; font-size: 16px; font-family: inherit;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  select { appearance: none; }
+  .check, .radio {
+    display: flex; align-items: center; gap: 12px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; margin-bottom: 8px; cursor: pointer;
+  }
+  .check .box, .radio .dot {
+    width: 22px; height: 22px; border: 2px solid var(--muted); flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff;
+  }
+  .check .box { border-radius: 6px; }
+  .radio .dot { border-radius: 50%; }
+  .check.on .box { background: var(--green); border-color: var(--green); }
+  .radio.on .dot { border-color: var(--green); }
+  .radio.on .dot::after { content:''; width:11px; height:11px; border-radius:50%; background: var(--green); }
+  .desc { color: var(--muted); font-size: 14px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Splash -->
+<div id="splash">
+  <div class="leaf">🍃</div>
+  <h1>Lawn Rangers</h1>
+</div>
+
+<!-- Home -->
+<div class="navbar">
+  <span class="left">&nbsp;</span>
+  <span class="title">Lawn Rangers</span>
+  <button class="iconbtn" onclick="toggleMenu()">＋</button>
+</div>
+
+<div id="scrim" onclick="closeMenu()"></div>
+<div id="menu">
+  <button onclick="openLawn()">🍃&nbsp; Log a Lawn</button>
+  <button onclick="openExpense()">＄&nbsp; Log an Expense</button>
+</div>
+
+<div class="content" id="home"></div>
+
+<!-- Log a Lawn sheet -->
+<div class="sheet" id="lawnSheet">
+  <div class="sheet-nav">
+    <button onclick="closeLawn()">Cancel</button>
+    <span class="t">Log a Lawn</span>
+    <button id="lawnSubmit" onclick="submitLawn()">Submit</button>
+  </div>
+  <div class="body">
+    <div class="field">
+      <label class="q">Where? <span class="req">*</span></label>
+      <select id="where" onchange="onWhereChange()"></select>
+      <input type="text" id="whereCustom" placeholder="New customer name" style="display:none;margin-top:8px"/>
+    </div>
+
+    <div class="field">
+      <label class="q">Who? <span class="req">*</span></label>
+      <div id="whoList"></div>
+      <input type="text" id="whoOther" placeholder="Other" style="display:none;margin-top:4px"/>
+    </div>
+
+    <div class="field">
+      <label class="q">How much? Enter 'Standard' or the actual rate. <span class="req">*</span></label>
+      <input type="text" id="howMuch" value="Standard" />
+      <div class="hint">Leave as "Standard" to use the customer's standard rate, or type the actual amount.</div>
+    </div>
+
+    <div class="field">
+      <label class="q">Customer paid? <span class="req">*</span></label>
+      <div id="custPaid"></div>
+    </div>
+
+    <div class="field">
+      <label class="q">Teammember paid? <span class="req">*</span></label>
+      <div id="teamPaid"></div>
+    </div>
+
+    <div class="field">
+      <label class="q">Note. Include Address &amp; Phone for new customers</label>
+      <textarea id="note" placeholder="Your answer"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Log an Expense sheet -->
+<div class="sheet" id="expenseSheet">
+  <div class="sheet-nav">
+    <button onclick="closeExpense()">Cancel</button>
+    <span class="t">Log an Expense</span>
+    <button id="expSubmit" onclick="submitExpense()">Submit</button>
+  </div>
+  <div class="body">
+    <div class="desc">This is to record any overhead purchases.</div>
+    <div class="field">
+      <label class="q">Expenses <span class="req">*</span></label>
+      <input type="text" id="expName" placeholder="Your answer" />
+    </div>
+    <div class="field">
+      <label class="q">Amount <span class="req">*</span></label>
+      <input type="text" id="expAmount" inputmode="decimal" placeholder="Your answer" />
+    </div>
+    <div class="field">
+      <label class="q">Comment</label>
+      <textarea id="expComment" placeholder="Your answer"></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- Data ---------------------------------------------------------------
+  const TEAM = ["Grantham", "Gresham", "Caleb", "Oliver"];
+  // Seeded customers + their "Standard" rate (from the existing sheet).
+  const RATES = {
+    "Adam":40,"Anderson":40,"Beverly":50,"Brian":30,"Corbit":55,"Eldridge":45,
+    "Harrington":40,"Helen Lee":40,"Holland":40,"Hunter":30,"Johnson":35,"King":30,
+    "Larry":30,"Matthews":55,"Nancy Patton":60,"Retzer":40,"Schreck":40,"Yatish":50
+  };
+  const DEFAULT_STANDARD = 40; // fallback if a customer has no set rate
+  const STORE = "lawnRangersDemoEntries";
+
+  let entries = load();
+  let whoSel = new Set(), custPaid = "", teamPaid = "";
+
+  function load() { try { return JSON.parse(localStorage.getItem(STORE)) || []; } catch(e){ return []; } }
+  function save() { localStorage.setItem(STORE, JSON.stringify(entries)); }
+
+  // --- Splash -------------------------------------------------------------
+  setTimeout(() => document.getElementById("splash").classList.add("hide"), 1800);
+
+  // --- Menu ---------------------------------------------------------------
+  function toggleMenu(){ const m=document.getElementById("menu"); const s=document.getElementById("scrim");
+    m.classList.toggle("show"); s.classList.toggle("show"); }
+  function closeMenu(){ document.getElementById("menu").classList.remove("show");
+    document.getElementById("scrim").classList.remove("show"); }
+
+  // --- Build Where dropdown ----------------------------------------------
+  function customerList(){
+    const used = entries.filter(e=>e.type==="lawn").map(e=>e.where);
+    return [...new Set([...Object.keys(RATES), ...used])].sort();
+  }
+  function buildWhere(){
+    const sel = document.getElementById("where");
+    sel.innerHTML = '<option value="">Choose</option>' +
+      customerList().map(c=>`<option value="${c}">${c}</option>`).join("") +
+      '<option value="__other__">New customer…</option>';
+  }
+  function onWhereChange(){
+    const v = document.getElementById("where").value;
+    document.getElementById("whereCustom").style.display = v==="__other__" ? "block" : "none";
+    updateLawnValid();
+  }
+
+  // --- Build Who checkboxes ----------------------------------------------
+  function buildWho(){
+    const list = document.getElementById("whoList");
+    list.innerHTML = "";
+    [...TEAM, "Other"].forEach(name=>{
+      const d = document.createElement("div");
+      d.className = "check"; d.innerHTML = `<span class="box">✓</span><span>${name}</span>`;
+      d.onclick = ()=>{
+        d.classList.toggle("on");
+        if(name==="Other"){
+          const oth=document.getElementById("whoOther");
+          oth.style.display = d.classList.contains("on") ? "block" : "none";
+        } else {
+          whoSel.has(name) ? whoSel.delete(name) : whoSel.add(name);
+        }
+        updateLawnValid();
+      };
+      list.appendChild(d);
+    });
+  }
+  function buildRadios(containerId, which){
+    const c = document.getElementById(containerId); c.innerHTML="";
+    ["Paid","Unpaid"].forEach(opt=>{
+      const d=document.createElement("div"); d.className="radio";
+      d.innerHTML=`<span class="dot"></span><span>${opt}</span>`;
+      d.onclick=()=>{
+        [...c.children].forEach(x=>x.classList.remove("on")); d.classList.add("on");
+        if(which==="cust") custPaid=opt; else teamPaid=opt;
+        updateLawnValid();
+      };
+      c.appendChild(d);
+    });
+  }
+
+  // --- Open / close sheets ------------------------------------------------
+  function openLawn(){
+    closeMenu(); resetLawn();
+    document.getElementById("lawnSheet").classList.add("show");
+  }
+  function closeLawn(){ document.getElementById("lawnSheet").classList.remove("show"); }
+  function resetLawn(){
+    whoSel=new Set(); custPaid=""; teamPaid="";
+    buildWhere(); buildWho(); buildRadios("custPaid","cust"); buildRadios("teamPaid","team");
+    document.getElementById("whereCustom").value=""; document.getElementById("whereCustom").style.display="none";
+    document.getElementById("whoOther").value=""; document.getElementById("whoOther").style.display="none";
+    document.getElementById("howMuch").value="Standard";
+    document.getElementById("note").value="";
+    updateLawnValid();
+  }
+  function openExpense(){
+    closeMenu();
+    ["expName","expAmount","expComment"].forEach(id=>document.getElementById(id).value="");
+    updateExpValid();
+    document.getElementById("expenseSheet").classList.add("show");
+  }
+  function closeExpense(){ document.getElementById("expenseSheet").classList.remove("show"); }
+
+  // --- Validation ---------------------------------------------------------
+  function resolvedWhere(){
+    const v=document.getElementById("where").value;
+    return v==="__other__" ? document.getElementById("whereCustom").value.trim() : v;
+  }
+  function resolvedWho(){
+    const arr=[...whoSel];
+    const oth=document.getElementById("whoOther").value.trim();
+    if(document.querySelector("#whoList .check.on:last-child") &&
+       [...document.querySelectorAll("#whoList .check")].pop().classList.contains("on") && oth) arr.push(oth);
+    return arr;
+  }
+  function updateLawnValid(){
+    const ok = resolvedWhere() && resolvedWho().length>0 && custPaid && teamPaid;
+    document.getElementById("lawnSubmit").disabled = !ok;
+  }
+  function updateExpValid(){
+    const ok = document.getElementById("expName").value.trim() && document.getElementById("expAmount").value.trim();
+    document.getElementById("expSubmit").disabled = !ok;
+  }
+  document.addEventListener("input", e=>{
+    if(["whereCustom","whoOther"].includes(e.target.id)) updateLawnValid();
+    if(["expName","expAmount"].includes(e.target.id)) updateExpValid();
+  });
+
+  // --- Math (mirrors the sheet) ------------------------------------------
+  function computeRate(where, howMuch){
+    const hm = (howMuch||"").trim();
+    if(hm.toLowerCase()==="standard" || hm===""){
+      return RATES[where] != null ? RATES[where] : DEFAULT_STANDARD;
+    }
+    const n = parseFloat(hm.replace(/[^0-9.]/g,""));
+    return isNaN(n) ? 0 : n;
+  }
+  function splits(rate, who){
+    const head = who.length || 1;
+    const per = rate*0.8/head;
+    const obj = {};
+    who.forEach(p=>{ if(TEAM.includes(p)) obj[p]=per; });
+    return { per, overhead: rate*0.1, depreciation: rate*0.1, perPerson: obj };
+  }
+
+  // --- Submit -------------------------------------------------------------
+  function submitLawn(){
+    const where=resolvedWhere(), who=resolvedWho();
+    const howMuch=document.getElementById("howMuch").value.trim() || "Standard";
+    const rate=computeRate(where, howMuch);
+    entries.unshift({
+      type:"lawn", ts:Date.now(), where, who, howMuch, rate,
+      custPaid, teamPaid, note:document.getElementById("note").value.trim(),
+      calc: splits(rate, who)
+    });
+    save(); render(); closeLawn();
+  }
+  function submitExpense(){
+    entries.unshift({
+      type:"expense", ts:Date.now(),
+      name:document.getElementById("expName").value.trim(),
+      amount:document.getElementById("expAmount").value.trim(),
+      comment:document.getElementById("expComment").value.trim()
+    });
+    save(); render(); closeExpense();
+  }
+
+  // --- Render home --------------------------------------------------------
+  function money(n){ return "$"+(Math.round(n*100)/100).toFixed(2); }
+  function dateStr(ts){ return new Date(ts).toLocaleDateString(); }
+  function render(){
+    const home=document.getElementById("home");
+    const lawns=entries.filter(e=>e.type==="lawn");
+    const exps=entries.filter(e=>e.type==="expense");
+    if(!entries.length){
+      home.innerHTML=`<div class="empty"><div class="big">🗒️</div>
+        <h3>No entries yet</h3><p>Tap ＋ in the top-right to log a lawn or an expense.</p></div>`;
+      return;
+    }
+    let html="";
+    if(lawns.length){
+      html+=`<div class="section-title">Lawns</div>`;
+      lawns.forEach(e=>{
+        const c=e.calc;
+        const people=Object.keys(c.perPerson).map(p=>`<span>${p}: <b>${money(c.perPerson[p])}</b></span>`).join("");
+        html+=`<div class="card">
+          <div class="row1"><span class="name">${e.where||"Lawn"}</span><span class="rate">${money(e.rate)}</span></div>
+          <div class="meta">${dateStr(e.ts)} · ${e.who.join(", ")}
+            <span class="pill ${e.custPaid==='Paid'?'paid':'unpaid'}">Cust ${e.custPaid}</span>
+            <span class="pill ${e.teamPaid==='Paid'?'paid':'unpaid'}">Team ${e.teamPaid}</span></div>
+          <div class="calc">${people}
+            <span>Overhead: <b>${money(c.overhead)}</b></span>
+            <span>Depreciation: <b>${money(c.depreciation)}</b></span></div>
+          ${e.note?`<div class="meta">📝 ${e.note}</div>`:""}
+        </div>`;
+      });
+    }
+    if(exps.length){
+      html+=`<div class="section-title">Expenses</div>`;
+      exps.forEach(e=>{
+        html+=`<div class="card">
+          <div class="row1"><span class="name">${e.name||"Expense"}</span><span class="rate">${e.amount?("$"+e.amount.replace(/[^0-9.]/g,"")):""}</span></div>
+          <div class="meta">${dateStr(e.ts)}${e.comment?" · "+e.comment:""}</div>
+        </div>`;
+      });
+    }
+    home.innerHTML=html;
+  }
+
+  render();
+</script>
+</body>
+</html>
