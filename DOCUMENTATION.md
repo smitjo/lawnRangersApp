@@ -71,6 +71,7 @@ On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
 | `LawnRangers/Backend/BackendConfig.swift` | Stores the Web App URL in `UserDefaults`; exposes `webAppURL` / `isConfigured`. |
 | `LawnRangers/Backend/SheetSubmitter.swift` | Best-effort `async` POST of a `sheetPayload()` to the Web App. No-ops if not configured. |
 | `backend/Code.gs` | Google Apps Script: `setupSpreadsheet()` builder + `doPost()` receiver (see §6). Not part of the Xcode target. |
+| `demo/lawn-rangers-demo.html` | Single-file web mock-up of the app for tapping through in a browser (see §9). Local-only; does not post to the sheet. |
 
 ---
 
@@ -178,8 +179,29 @@ The app stays in local-only mode until a valid URL is saved.
 ## 8. Known follow-ups
 
 - **App icon** — currently a placeholder green "LR". Replace `AppIcon` with the
-  lasso artwork.
+  lasso artwork (drag the 1024×1024 PNG into the AppIcon well in Xcode).
 - **Standard-rate accuracy** — verify the Rates tab values against the original
   sheet after the first live entries.
 - **"Other" mower payouts** — not tracked in a dedicated column (by design);
   can be added if needed.
+
+---
+
+## 9. Interactive web demo
+
+`demo/lawn-rangers-demo.html` is a standalone, single-file mock-up of the app for
+quick tapping/testing — no Xcode required. It mirrors the splash, dark mode, the
+`+` dropdown, both forms (including the "Standard" rate default), and the split
+math, persisting entries in `localStorage`. It is **local-only** and never posts
+to the Google Sheet.
+
+Run it on a phone:
+
+- **Instant (public repo):**
+  `https://raw.githack.com/smitjo/lawnRangersApp/main/demo/lawn-rangers-demo.html`
+- **GitHub Pages:** enable at *Settings → Pages → Deploy from a branch →
+  `main` / root*, then open
+  `https://smitjo.github.io/lawnRangersApp/demo/lawn-rangers-demo.html`
+
+The demo seeds "Standard" rates from the original sheet for illustration; the
+real app resolves them from the **Rates** tab.

@@ -7,8 +7,8 @@ of an existing Google Form:
 - **Log a Lawn** — copies the *Lawn Mowing Wizard - 2025 Daily Log* form.
 - **Log an Expense** — copies the *Overhead Expense* form.
 
-Entries are saved on-device (SwiftData) and, once the backend is connected, also
-posted to the Google Sheet.
+Entries are saved on-device (SwiftData) and posted to the Google Sheet through a
+built-in backend URL baked into the app.
 
 ## Requirements
 
@@ -16,6 +16,23 @@ posted to the Google Sheet.
 - iOS 18.6 deployment target
 
 Open `LawnRangers.xcodeproj` and run on a simulator or device.
+
+## Try the interactive demo (no Xcode needed)
+
+`demo/lawn-rangers-demo.html` is a single-file web mock-up of the app — green
+splash, dark mode, the `+` dropdown, both forms (with the "Standard" rate
+default), and the live split math. It saves entries in the browser only and does
+**not** post to the Google Sheet, so it's safe to tap around.
+
+Run it on a phone via either:
+
+- **Instant (public repo):**
+  `https://raw.githack.com/smitjo/lawnRangersApp/main/demo/lawn-rangers-demo.html`
+- **GitHub Pages (permanent link):** enable Pages at
+  *Settings → Pages → Deploy from a branch → `main` / root → Save*, then open
+  `https://smitjo.github.io/lawnRangersApp/demo/lawn-rangers-demo.html`
+
+On iOS, **Share → Add to Home Screen** gives it a full-screen, app-like feel.
 
 ## Forms
 
@@ -35,10 +52,12 @@ Open `LawnRangers.xcodeproj` and run on a simulator or device.
 The "Where?" dropdown is seeded from `LawnRangers/Data/CustomerDirectory.swift`
 and also grows automatically with any customer you enter in the app.
 
-## Connecting the Google Sheets backend (do this last)
+## Google Sheets backend
 
-The app is wired to post each entry to a Google Apps Script Web App, but stays
-in **local-only** mode until you give it a URL.
+The app already ships connected: the deployed Apps Script Web App `/exec` URL is
+baked into `BackendConfig.defaultWebAppURLString`, so every install posts to the
+sheet out of the box. The steps below are only needed to (re)create the sheet or
+point the app at a different backend.
 
 1. Create (or open) the Google Sheet you want to use.
 2. **Extensions → Apps Script**; delete the sample, paste in [`backend/Code.gs`](backend/Code.gs).
@@ -54,15 +73,15 @@ in **local-only** mode until you give it a URL.
    the form's "Standard" value looks up.
 5. **Deploy → New deployment → Web app**, *Execute as: Me*, *Who has access: Anyone*.
 6. Copy the Web app `/exec` URL.
-7. In the app, tap the **gear** (top-left) → paste the URL → **Save**.
+7. To make it the default for everyone, paste it into
+   `BackendConfig.defaultWebAppURLString` and ship a new build. To point just
+   *this* device at it, tap the **gear** (top-left) → paste the URL → **Save**;
+   that override is stored in `UserDefaults` and clearing it reverts to the
+   built-in default.
 
 After that, every submission is appended to the right tab. For lawn rows the
 script fills in the calculated columns automatically using:
 Rate × 0.8 ÷ headcount per teammate, Rate × 0.1 overhead, Rate × 0.1 depreciation.
-
-The app stores the URL in `UserDefaults`, so you only enter it once — it
-persists across app launches, restarts, and updates (it's only lost if the app
-is deleted).
 
 ### Keeping the deployment URL stable
 
@@ -82,3 +101,8 @@ needs to be reconfigured.
 The app runs in **dark mode** (forced via `.preferredColorScheme(.dark)` in
 `LawnRangersApp.swift`). The splash is the brand green with the "Lawn Rangers"
 wordmark.
+
+**App icon:** the repo currently has a placeholder green "LR" icon. The final
+lasso icon ("LR" inside a lasso on green) should be dropped into
+`Assets.xcassets/AppIcon` (drag the 1024×1024 PNG into the AppIcon well in
+Xcode).
