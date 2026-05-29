@@ -20,7 +20,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Google Sheets Web App URL")
                 } footer: {
-                    Text("Deploy the Apps Script in backend/Code.gs as a Web App, then paste its URL here. Leave blank to save entries locally only.")
+                    Text("The app ships with a built-in backend URL, so this is optional. Enter a URL here only to override the default on this device; leave blank to use the built-in one.")
                 }
 
                 Section {
@@ -28,8 +28,11 @@ struct SettingsView: View {
                         Text("Status")
                         Spacer()
                         if BackendConfig.isConfigured {
-                            Label("Connected", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                            Label(
+                                BackendConfig.isUsingDefault ? "Connected (built-in)" : "Connected (custom)",
+                                systemImage: "checkmark.circle.fill"
+                            )
+                            .foregroundStyle(.green)
                         } else {
                             Label("Local only", systemImage: "iphone")
                                 .foregroundStyle(.secondary)
@@ -45,7 +48,7 @@ struct SettingsView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        BackendConfig.webAppURLString = urlString
+                        BackendConfig.overrideURLString = urlString
                         dismiss()
                     }
                 }

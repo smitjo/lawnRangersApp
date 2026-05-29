@@ -161,10 +161,13 @@ The app stays in local-only mode until a valid URL is saved.
 
 ### URL persistence
 
-- **In the app:** the URL is stored in `UserDefaults` (`BackendConfig`), so it
-  persists across launches, restarts, and app updates — entered once. It is only
-  cleared if the app is deleted. (For cross-device sync you could swap
-  `UserDefaults` for `NSUbiquitousKeyValueStore`; not currently implemented.)
+- **In the app:** the app ships with a **built-in default URL**
+  (`BackendConfig.defaultWebAppURLString`) baked in, so every install is connected
+  out of the box. A per-device **override** can be saved in Settings; it's stored
+  in `UserDefaults` (the app's preferences plist) and persists across launches,
+  restarts, and updates. Clearing the override reverts to the built-in default.
+  To change the baked-in URL for everyone, edit `defaultWebAppURLString` and ship
+  a new build.
 - **In Apps Script:** keep the same `/exec` URL when updating the script by using
   **Deploy → Manage deployments → Edit (✏️) → Version: New version → Deploy**.
   Using *New deployment* instead would mint a different URL and require

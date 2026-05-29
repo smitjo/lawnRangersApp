@@ -1,26 +1,44 @@
 import Foundation
 
-/// Holds the Google Sheets backend endpoint. Until you paste a Web App URL
-/// (in Settings), the app simply saves entries locally and skips submission.
+/// Holds the Google Sheets backend endpoint.
 ///
-/// To connect the backend at the end: deploy the Apps Script in `backend/Code.gs`
-/// as a Web App, then paste its URL into the app's Settings screen.
+/// The app ships with a built-in default URL (`defaultWebAppURLString`) baked in,
+/// so every install is connected out of the box. A value saved in Settings
+/// overrides the default on that device; clearing it reverts to the default.
 enum BackendConfig {
+    /// Built-in default Web App URL, baked into the app.
+    /// Paste your Apps Script `/exec` URL here.
+    static let defaultWebAppURLString = "" // <-- paste the /exec URL here
+
     private static let urlKey = "sheetsWebAppURL"
 
-    /// The raw Web App URL string, persisted in UserDefaults.
-    static var webAppURLString: String {
+    /// Per-device override saved from Settings (empty when not set).
+    /// Persisted in UserDefaults (the app's preferences plist).
+    static var overrideURLString: String {
         get { UserDefaults.standard.string(forKey: urlKey) ?? "" }
         set { UserDefaults.standard.set(newValue, forKey: urlKey) }
     }
 
-    /// A validated URL, or nil if not configured yet.
+    /// The effective URL string: the Settings override if present, else the
+    /// baked-in default.
+    static var webAppURLString: String {
+        let override = overrideURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        return override.isEmpty ? defaultWebAppURLString : override
+    }
+
+    /// A validated URL, or nil if neither an override nor a default is set.
     static var webAppURL: URL? {
         let trimmed = webAppURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let url = URL(string: trimmed) else { return nil }
         return url
     }
 
-    /// Whether a backend endpoint has been configured.
+    /// Whether a usable endpoint exists (override or baked-in default).
     static var isConfigured: Bool { webAppURL != nil }
+
+    /// True when the effective URL is the baked-in default (no Settings override).
+    static var isUsingDefault: Bool {
+        overrideURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !defaultWebAppURLString.isEmpty
+    }
 }
