@@ -19,8 +19,8 @@ struct LogLawnView: View {
     @State private var whoOtherEnabled = false
     @State private var whoOther: String = ""
 
-    // Q3 — How much?
-    @State private var howMuch: String = ""
+    // Q3 — How much?  Defaults to "Standard"; tap in to type an actual rate.
+    @State private var howMuch: String = "Standard"
 
     // Q4 / Q5 — Paid?
     @State private var customerPaid: String = ""        // "Paid" / "Unpaid"
@@ -48,9 +48,14 @@ struct LogLawnView: View {
     private var canSave: Bool {
         !resolvedWhere.isEmpty
             && !resolvedTeam.isEmpty
-            && !howMuch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !customerPaid.isEmpty
             && !teammemberPaid.isEmpty
+    }
+
+    /// The rate to record: a typed value, or "Standard" if left blank.
+    private var resolvedHowMuch: String {
+        let trimmed = howMuch.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Standard" : trimmed
     }
 
     private var resolvedTeam: [String] {
@@ -96,11 +101,13 @@ struct LogLawnView: View {
                     requiredHeader("Who?")
                 }
 
-                // Q3 — How much?
+                // Q3 — How much?  Pre-filled with "Standard"; tap to enter a rate.
                 Section {
-                    TextField("Your answer", text: $howMuch)
+                    TextField("Standard", text: $howMuch)
                 } header: {
                     requiredHeader("How much? Enter 'Standard' or the actual rate.")
+                } footer: {
+                    Text("Leave as \"Standard\" to use the customer's standard rate, or type the actual amount.")
                 }
 
                 // Q4 — Customer paid?
@@ -184,7 +191,7 @@ struct LogLawnView: View {
         let log = LawnLog(
             whereLocation: resolvedWhere,
             who: resolvedTeam,
-            howMuch: howMuch.trimmingCharacters(in: .whitespacesAndNewlines),
+            howMuch: resolvedHowMuch,
             customerPaid: customerPaid,
             teammemberPaid: teammemberPaid,
             note: note.trimmingCharacters(in: .whitespacesAndNewlines)
