@@ -34,6 +34,22 @@ Run it on a phone via either:
 
 On iOS, **Share → Add to Home Screen** gives it a full-screen, app-like feel.
 
+## Browse the code (web viewer)
+
+`tools/code-viewer.html` is a single-file HTML5 viewer for this repository — a
+file tree + code view that runs in any browser, with a branch switcher and a
+file filter. It reads the repo through the GitHub API.
+
+Run it on a phone via:
+
+- **Instant (public repo):**
+  `https://raw.githack.com/smitjo/lawnRangersApp/main/tools/code-viewer.html`
+- **GitHub Pages:** `https://smitjo.github.io/lawnRangersApp/tools/code-viewer.html`
+
+If the repo is **private** (or you hit the unauthenticated rate limit), tap the
+🔑 button and paste a GitHub token with read-only **Contents** access — it's
+stored only in your browser.
+
 ## Forms
 
 **Log a Lawn** (writes sheet columns A–G; timestamp is automatic):

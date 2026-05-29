@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#2E7D32" />
+<title>Lawn Rangers — Code Viewer</title>
+<style>
+  :root {
+    --green:#2E7D32; --green-light:#3a9a40; --bg:#0f0f10; --card:#1c1c1e;
+    --card2:#2c2c2e; --text:#f2f2f2; --muted:#9a9a9e; --line:#38383a; --accent:#7ee08a;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  /* Header */
+  .bar { position:sticky; top:0; z-index:10; background:rgba(20,20,22,.92);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+    padding:12px 14px; padding-top:calc(12px + env(safe-area-inset-top)); }
+  .bar .row { display:flex; align-items:center; gap:10px; }
+  .bar .title { font-weight:800; font-size:18px; flex:1; }
+  .bar .title small { color:var(--muted); font-weight:600; font-size:12px; display:block; }
+  .iconbtn { background:var(--card2); border:1px solid var(--line); color:var(--text);
+    border-radius:10px; padding:7px 10px; font-size:14px; cursor:pointer; }
+  select, input { background:var(--card); border:1px solid var(--line); color:var(--text);
+    border-radius:10px; padding:8px 10px; font-size:14px; font-family:inherit; }
+  .filter { width:100%; margin-top:10px; }
+  /* Tree */
+  #tree { padding:6px 6px 60px; }
+  .node { display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:8px;
+    cursor:pointer; font-size:15px; }
+  .node:active { background:var(--card); }
+  .node .tw { width:14px; color:var(--muted); font-size:12px; flex:none; text-align:center; }
+  .node .ic { flex:none; }
+  .node .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .node.dir .nm { font-weight:600; }
+  .node .sz { margin-left:auto; color:var(--muted); font-size:12px; flex:none; }
+  .children { margin-left:14px; border-left:1px solid var(--line); }
+  .hidden { display:none; }
+  /* Viewer overlay */
+  .overlay { position:fixed; inset:0; background:var(--bg); z-index:30;
+    transform:translateX(100%); transition:transform .25s ease; display:flex; flex-direction:column; }
+  .overlay.show { transform:translateX(0); }
+  .overlay .ohead { display:flex; align-items:center; gap:10px; padding:12px 14px;
+    padding-top:calc(12px + env(safe-area-inset-top)); border-bottom:1px solid var(--line); }
+  .overlay .ohead .fn { font-weight:700; font-size:15px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .overlay .ohead .lang { color:var(--muted); font-size:12px; flex:none; }
+  .obody { overflow:auto; flex:1; -webkit-overflow-scrolling:touch; }
+  pre.code { margin:0; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    counter-reset:ln; }
+  pre.code .l { display:flex; }
+  pre.code .l::before { counter-increment:ln; content:counter(ln);
+    width:46px; flex:none; text-align:right; padding-right:12px; color:#5a5a5e;
+    user-select:none; border-right:1px solid var(--line); margin-right:12px; }
+  pre.code .t { white-space:pre; padding-right:14px; }
+  .imgwrap { padding:16px; text-align:center; }
+  .imgwrap img { max-width:100%; background:#fff; border-radius:8px; }
+  .msg { padding:30px 18px; color:var(--muted); text-align:center; }
+  .msg.err { color:#ff8a82; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="row">
+    <div class="title">Lawn Rangers — Code <small id="repoLabel">smitjo/lawnRangersApp</small></div>
+    <select id="branch" title="Branch"></select>
+    <button class="iconbtn" onclick="loadTree()" title="Reload">↻</button>
+    <button class="iconbtn" onclick="toggleSettings()" title="Token">🔑</button>
+  </div>
+  <input class="filter" id="filter" placeholder="Filter files…" oninput="applyFilter()" />
+  <div id="settings" class="hidden" style="margin-top:10px">
+    <input id="token" placeholder="GitHub token (only for private repos / higher rate limit)" style="width:100%" />
+    <div style="display:flex; gap:8px; margin-top:8px">
+      <button class="iconbtn" onclick="saveToken()">Save token</button>
+      <button class="iconbtn" onclick="clearToken()">Clear</button>
+    </div>
+    <div style="color:var(--muted); font-size:12px; margin-top:6px">
+      Stored only in this browser. A fine-grained token with read-only "Contents" access is enough.
+    </div>
+  </div>
+</div>
+
+<div id="tree"><div class="msg">Loading…</div></div>
+
+<div class="overlay" id="viewer">
+  <div class="ohead">
+    <button class="iconbtn" onclick="closeViewer()">‹ Back</button>
+    <span class="fn" id="fn"></span>
+    <span class="lang" id="lang"></span>
+  </div>
+  <div class="obody" id="obody"></div>
+</div>
+
+<script>
+  const OWNER = "smitjo";
+  const REPO  = "lawnRangersApp";
+  const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
+  let branch = "main";
+  let treeData = [];
+
+  // --- auth / fetch -------------------------------------------------------
+  function token(){ return localStorage.getItem("ghToken") || ""; }
+  function headers(){
+    const h = { "Accept":"application/vnd.github+json" };
+    if (token()) h["Authorization"] = "Bearer " + token();
+    return h;
+  }
+  async function api(path){
+    const res = await fetch(API + path, { headers: headers() });
+    if (res.status === 403 && res.headers.get("X-RateLimit-Remaining") === "0")
+      throw new Error("GitHub rate limit reached. Add a token (🔑) to continue.");
+    if (res.status === 404) throw new Error("Not found. If the repo is private, add a token (🔑).");
+    if (!res.ok) throw new Error("GitHub error " + res.status);
+    return res.json();
+  }
+
+  // --- branches -----------------------------------------------------------
+  async function loadBranches(){
+    try {
+      const list = await api("/branches?per_page=100");
+      const sel = document.getElementById("branch");
+      sel.innerHTML = list.map(b => `<option value="${b.name}" ${b.name==="main"?"selected":""}>${b.name}</option>`).join("");
+      branch = sel.value || "main";
+      sel.onchange = () => { branch = sel.value; loadTree(); };
+    } catch(e){ /* fall back to main */ }
+  }
+
+  // --- tree ---------------------------------------------------------------
+  async function loadTree(){
+    const el = document.getElementById("tree");
+    el.innerHTML = `<div class="msg">Loading…</div>`;
+    try {
+      const data = await api(`/git/trees/${encodeURIComponent(branch)}?recursive=1`);
+      treeData = (data.tree || []).filter(n => !n.path.startsWith(".git/"));
+      renderTree();
+    } catch(e){
+      el.innerHTML = `<div class="msg err">${e.message}</div>`;
+    }
+  }
+
+  function buildNested(){
+    const root = {};
+    treeData.forEach(n => {
+      const parts = n.path.split("/");
+      let cur = root;
+      parts.forEach((part, i) => {
+        const isLeaf = i === parts.length - 1;
+        if (!cur[part]) cur[part] = { __meta:null, __children:{} };
+        if (isLeaf) cur[part].__meta = n;
+        cur = cur[part].__children;
+      });
+    });
+    return root;
+  }
+
+  function renderTree(){
+    const el = document.getElementById("tree");
+    const root = buildNested();
+    el.innerHTML = "";
+    el.appendChild(renderLevel(root, ""));
+    applyFilter();
+  }
+
+  function renderLevel(obj, prefix){
+    const frag = document.createElement("div");
+    const names = Object.keys(obj).sort((a,b)=>{
+      const ad = Object.keys(obj[a].__children).length>0 || obj[a].__meta?.type==="tree";
+      const bd = Object.keys(obj[b].__children).length>0 || obj[b].__meta?.type==="tree";
+      if (ad !== bd) return ad ? -1 : 1;           // folders first
+      return a.toLowerCase().localeCompare(b.toLowerCase());
+    });
+    names.forEach(name => {
+      const entry = obj[name];
+      const meta = entry.__meta;
+      const isDir = (meta && meta.type === "tree") || Object.keys(entry.__children).length>0;
+      const path = prefix ? prefix + "/" + name : name;
+
+      const node = document.createElement("div");
+      node.className = "node " + (isDir ? "dir" : "file");
+      node.dataset.path = path.toLowerCase();
+      node.innerHTML = `<span class="tw">${isDir?"▸":""}</span>`
+        + `<span class="ic">${isDir?"📁":fileIcon(name)}</span>`
+        + `<span class="nm">${name}</span>`
+        + (meta && meta.size!=null && !isDir ? `<span class="sz">${fmtSize(meta.size)}</span>` : "");
+      frag.appendChild(node);
+
+      if (isDir){
+        const kids = renderLevel(entry.__children, path);
+        kids.classList.add("children","hidden");
+        frag.appendChild(kids);
+        node.onclick = () => {
+          kids.classList.toggle("hidden");
+          node.querySelector(".tw").textContent = kids.classList.contains("hidden") ? "▸" : "▾";
+        };
+      } else {
+        node.onclick = () => openFile(path, name);
+      }
+    });
+    return frag;
+  }
+
+  // --- file viewing -------------------------------------------------------
+  async function openFile(path, name){
+    document.getElementById("fn").textContent = path;
+    document.getElementById("lang").textContent = extOf(name).toUpperCase();
+    const body = document.getElementById("obody");
+    body.innerHTML = `<div class="msg">Loading…</div>`;
+    document.getElementById("viewer").classList.add("show");
+    try {
+      if (isImage(name)){
+        const meta = await api(`/contents/${encodeURIComponent(path).replace(/%2F/g,"/")}?ref=${encodeURIComponent(branch)}`);
+        body.innerHTML = `<div class="imgwrap"><img src="data:${mime(name)};base64,${meta.content.replace(/\s/g,"")}" alt="${name}"></div>`;
+        return;
+      }
+      const meta = await api(`/contents/${encodeURIComponent(path).replace(/%2F/g,"/")}?ref=${encodeURIComponent(branch)}`);
+      if (meta.content == null || meta.encoding !== "base64"){
+        body.innerHTML = `<div class="msg">File too large or binary. <a href="https://github.com/${OWNER}/${REPO}/blob/${branch}/${path}" target="_blank">Open on GitHub ↗</a></div>`;
+        return;
+      }
+      const text = b64ToUtf8(meta.content);
+      renderCode(body, text);
+    } catch(e){
+      body.innerHTML = `<div class="msg err">${e.message}</div>`;
+    }
+  }
+
+  function renderCode(body, text){
+    const pre = document.createElement("pre");
+    pre.className = "code";
+    const frag = document.createDocumentFragment();
+    text.replace(/\n$/,"").split("\n").forEach(line => {
+      const row = document.createElement("span");
+      row.className = "l";
+      const t = document.createElement("span");
+      t.className = "t";
+      t.textContent = line.length ? line : " ";
+      row.appendChild(t);
+      frag.appendChild(row);
+    });
+    pre.appendChild(frag);
+    body.innerHTML = "";
+    body.appendChild(pre);
+  }
+
+  function closeViewer(){ document.getElementById("viewer").classList.remove("show"); }
+
+  // --- filter -------------------------------------------------------------
+  function applyFilter(){
+    const q = document.getElementById("filter").value.trim().toLowerCase();
+    document.querySelectorAll("#tree .node").forEach(n => {
+      if (!q) { n.classList.remove("hidden"); return; }
+      const isFile = n.classList.contains("file");
+      n.classList.toggle("hidden", isFile && !n.dataset.path.includes(q));
+    });
+    // when filtering, reveal all folder children so matches show
+    document.querySelectorAll("#tree .children").forEach(c => {
+      if (q) c.classList.remove("hidden");
+    });
+  }
+
+  // --- settings -----------------------------------------------------------
+  function toggleSettings(){
+    const s = document.getElementById("settings");
+    s.classList.toggle("hidden");
+    document.getElementById("token").value = token();
+  }
+  function saveToken(){ localStorage.setItem("ghToken", document.getElementById("token").value.trim()); toggleSettings(); loadBranches().then(loadTree); }
+  function clearToken(){ localStorage.removeItem("ghToken"); document.getElementById("token").value=""; }
+
+  // --- helpers ------------------------------------------------------------
+  function extOf(n){ const m = n.match(/\.([a-z0-9]+)$/i); return m ? m[1] : ""; }
+  function isImage(n){ return /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n); }
+  function mime(n){ const e=extOf(n).toLowerCase(); return e==="svg"?"image/svg+xml":e==="jpg"?"image/jpeg":"image/"+e; }
+  function fileIcon(n){
+    const e = extOf(n).toLowerCase();
+    if (e==="swift") return "🟧";
+    if (e==="gs"||e==="js") return "🟨";
+    if (e==="md") return "📘";
+    if (e==="json") return "🟩";
+    if (e==="html") return "🌐";
+    if (e==="gitignore"||n===".gitignore") return "🚫";
+    return "📄";
+  }
+  function fmtSize(b){ return b<1024 ? b+" B" : b<1048576 ? (b/1024).toFixed(1)+" KB" : (b/1048576).toFixed(1)+" MB"; }
+  function b64ToUtf8(b64){
+    const bin = atob(b64.replace(/\s/g,""));
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+
+  // --- boot ---------------------------------------------------------------
+  loadBranches().then(loadTree);
+</script>
+</body>
+</html>
