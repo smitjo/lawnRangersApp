@@ -1,0 +1,171 @@
+# Lawn Rangers — Documentation
+
+Technical reference for the Lawn Rangers iOS app and its Google Sheets backend.
+For the quick overview and setup steps, see [`README.md`](README.md).
+
+---
+
+## 1. Overview
+
+Lawn Rangers is a SwiftUI iOS app for a lawn-care business. It replaces two
+Google Forms with native entry screens:
+
+- **Log a Lawn** — a copy of the *Lawn Mowing Wizard - 2025 Daily Log* form.
+- **Log an Expense** — a copy of the *Overhead Expense* form.
+
+Entries are saved on-device with SwiftData and, when a backend URL is configured,
+also posted to a Google Apps Script Web App that appends them to a spreadsheet.
+
+- **Platform:** iOS 18.6+, Xcode 16+
+- **UI:** SwiftUI, forced dark mode
+- **Persistence:** SwiftData (local), Google Sheets (remote, optional)
+- **Bundle id:** `com.lawnrangers.LawnRangers`
+
+---
+
+## 2. App flow
+
+```
+LawnRangersApp (@main)
+  └─ RootView                 splash → home transition
+       ├─ SplashView          brand green "Lawn Rangers", ~1.8s
+       └─ HomeView            list of entries + toolbar
+            ├─ "+" menu  ──▶  LogLawnView      (sheet)
+            ├─ "+" menu  ──▶  LogExpenseView   (sheet)
+            └─ gear      ──▶  SettingsView      (sheet)
+```
+
+On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
+`HomeView`. The home screen's top-right **`+`** opens a dropdown menu with
+**Log a Lawn** and **Log an Expense**; the top-left **gear** opens **Settings**.
+
+---
+
+## 3. File-by-file
+
+### App / shell
+| File | Responsibility |
+|---|---|
+| `LawnRangers/LawnRangersApp.swift` | `@main` entry. Builds the SwiftData `ModelContainer` for `LawnLog` + `Expense`, hosts `RootView`, forces dark mode via `.preferredColorScheme(.dark)`. |
+| `LawnRangers/RootView.swift` | Drives the splash → home transition with a `Task`-based delay. |
+| `LawnRangers/Views/SplashView.swift` | Brand splash: "Lawn Rangers" on `Color.lawnGreen`. Defines the `Color.lawnGreen` extension (`#2E7D32`). |
+| `LawnRangers/HomeView.swift` | Home list of recent lawns/expenses, the `+` dropdown (`Menu`), the settings gear, and sheet presentation. |
+
+### Entry screens
+| File | Responsibility |
+|---|---|
+| `LawnRangers/Views/LogLawnView.swift` | The Log a Lawn form (see §4). Validates required fields and writes a `LawnLog`. |
+| `LawnRangers/Views/LogExpenseView.swift` | The Log an Expense form: Expenses, Amount, Comment. Writes an `Expense`. |
+| `LawnRangers/Views/SettingsView.swift` | Lets the user paste/save the Google Sheets Web App URL; shows Connected / Local-only status. |
+
+### Models
+| File | Responsibility |
+|---|---|
+| `LawnRangers/Models/LawnLog.swift` | `@Model` for a lawn entry. Fields map to sheet columns A–G. Has `sheetPayload()`. |
+| `LawnRangers/Models/Expense.swift` | `@Model` for an overhead expense. Has `sheetPayload()`. |
+
+### Data / backend
+| File | Responsibility |
+|---|---|
+| `LawnRangers/Data/CustomerDirectory.swift` | Seed list of customers for the "Where?" dropdown. |
+| `LawnRangers/Backend/BackendConfig.swift` | Stores the Web App URL in `UserDefaults`; exposes `webAppURL` / `isConfigured`. |
+| `LawnRangers/Backend/SheetSubmitter.swift` | Best-effort `async` POST of a `sheetPayload()` to the Web App. No-ops if not configured. |
+| `backend/Code.gs` | Google Apps Script: `setupSpreadsheet()` builder + `doPost()` receiver (see §6). Not part of the Xcode target. |
+
+---
+
+## 4. Log a Lawn — fields
+
+Mirrors the Google Form exactly; the timestamp is captured automatically.
+
+| # | Question | Type | Required | Notes |
+|---|---|---|---|---|
+| 1 | Where? | Dropdown | ✅ | Seed customers ∪ previously used ∪ "New customer…" (free text). |
+| 2 | Who? | Checkboxes | ✅ | Grantham, Gresham, Caleb, Oliver, + Other (free text). Stored as a comma-joined list. |
+| 3 | How much? Enter 'Standard' or the actual rate. | Text | ✅ | Defaults to `"Standard"`. Blank ⇒ `"Standard"`. A number is used as the literal rate. |
+| 4 | Customer paid? | Radio | ✅ | `Paid` / `Unpaid`. |
+| 5 | Teammember paid? | Radio | ✅ | `Paid` / `Unpaid`. |
+| 6 | Note. Include Address & Phone for new customers | Text | ❌ | Optional. |
+
+**Log an Expense:** Expenses (text, required), Amount (text, required), Comment (text, optional).
+
+---
+
+## 5. Data model & payloads
+
+`LawnLog` → sheet columns A–G:
+
+| Property | Column | JSON key (`sheetPayload`) |
+|---|---|---|
+| `timestamp` | A Timestamp | `timestamp` (ISO 8601) |
+| `whereLocation` | B Where? | `where` |
+| `who: [String]` | C Who? | `who` (joined with `", "`) |
+| `howMuch` | D How much? | `howMuch` |
+| `customerPaid` | E Customer paid? | `customerPaid` |
+| `teammemberPaid` | F Teammember paid? | `teammemberPaid` |
+| `note` | G Note | `note` |
+
+Lawn payloads also include `"type": "lawn"`. Expense payloads use
+`"type": "expense"` with keys `expenses`, `amount`, `comment`.
+
+Submission is best-effort: the local SwiftData copy is always written first;
+`SheetSubmitter.submit(_:)` then POSTs and silently returns on failure or when
+no URL is configured.
+
+---
+
+## 6. Google Sheets backend (`backend/Code.gs`)
+
+### `setupSpreadsheet()` — run once
+Builds three tabs:
+
+- **Lawn Log** — columns A–N. Rows 1–2 hold **Total Earned** and **Unpaid
+  amount** summaries, row 3 is the header, data starts at row 4.
+- **Overhead Expense** — Timestamp, Expenses, Amount, Comment.
+- **Rates** — `Customer | Standard Rate` lookup, seeded with known customers
+  (fill in the rates yourself).
+
+### `doPost(e)` — receives app submissions
+Routes by `type`, appends the answer columns, and for lawn rows writes the
+calculated columns H–N.
+
+### Calculated columns (the math)
+Let **Rate** be the number in "How much?", or the customer's Standard Rate from
+the **Rates** tab when the value is exactly `"Standard"`.
+
+| Column | Formula | Meaning |
+|---|---|---|
+| H Rate | `Rate` | Resolved rate for the job. |
+| I–L (per mower) | `Rate × 0.8 ÷ headcount` | Remaining 80% split equally among the people in "Who?". |
+| M Overhead | `Rate × 0.1` | 10% of revenue. |
+| N Depreciation | `Rate × 0.1` | 10% of revenue. |
+
+`headcount = COUNTA(SPLIT("Who?", ","))`. Per-mower columns exist only for the
+four named teammates; an "Other" mower still counts toward the headcount but has
+no dedicated column.
+
+Summary rows: **Total Earned** = column sum; **Unpaid amount** = column sum
+limited to rows where `Customer paid? = "Unpaid"`.
+
+---
+
+## 7. Connecting & deploying
+
+1. Create a Google Sheet → **Extensions → Apps Script** → paste `backend/Code.gs`.
+2. Run **`setupSpreadsheet`** (authorize when prompted).
+3. Fill in the **Rates** tab.
+4. **Deploy → New deployment → Web app** — *Execute as: Me*, *Who has access: Anyone*.
+5. Copy the `/exec` URL → in the app, **gear → Settings → paste → Save**.
+
+The app stays in local-only mode until a valid URL is saved.
+
+---
+
+## 8. Known follow-ups
+
+- **App icon** — currently a placeholder green "LR". Replace `AppIcon` with the
+  lasso artwork.
+- **Standard-rate accuracy** — verify the Rates tab values against the original
+  sheet after the first live entries.
+- **"Other" mower payouts** — not tracked in a dedicated column (by design);
+  can be added if needed.
