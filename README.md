@@ -99,8 +99,10 @@ needs to be reconfigured.
 ## Appearance
 
 The app runs in **dark mode** (forced via `.preferredColorScheme(.dark)` in
-`LawnRangersApp.swift`). The splash is the brand green with the "Lawn Rangers"
-wordmark.
+`LawnRangersApp.swift`). The splash is the brand green with a lasso motif over
+the "Lawn Rangers" wordmark and a row of grass along the bottom — the lasso
+reining in the unruly grass, left nicely trimmed by The Lawn Rangers. The grass
+is drawn in `GrassView` (a SwiftUI `Canvas`) in `SplashView.swift`.
 
 **App icon:** the repo currently has a placeholder green "LR" icon. The final
 lasso icon ("LR" inside a lasso on green) should be dropped into

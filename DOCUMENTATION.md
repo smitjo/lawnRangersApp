@@ -48,7 +48,7 @@ On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
 |---|---|
 | `LawnRangers/LawnRangersApp.swift` | `@main` entry. Builds the SwiftData `ModelContainer` for `LawnLog` + `Expense`, hosts `RootView`, forces dark mode via `.preferredColorScheme(.dark)`. |
 | `LawnRangers/RootView.swift` | Drives the splash → home transition with a `Task`-based delay. |
-| `LawnRangers/Views/SplashView.swift` | Brand splash: "Lawn Rangers" on `Color.lawnGreen`. Defines the `Color.lawnGreen` extension (`#2E7D32`). |
+| `LawnRangers/Views/SplashView.swift` | Brand splash: a lasso motif + "Lawn Rangers" on a green gradient, with a row of grass (`GrassView`, a `Canvas`) along the bottom — the lasso taming the grass. Defines the `Color.lawnGreen` extension (`#2E7D32`). |
 | `LawnRangers/HomeView.swift` | Home list of recent lawns/expenses, the `+` dropdown (`Menu`), the settings gear, and sheet presentation. |
 
 ### Entry screens

@@ -30,13 +30,15 @@
 
   /* Splash */
   #splash {
-    position: fixed; inset: 0; background: var(--green);
+    position: fixed; inset: 0;
+    background: linear-gradient(to bottom, #3a9a40, var(--green));
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 18px; z-index: 100; transition: opacity .5s ease;
+    gap: 18px; z-index: 100; transition: opacity .5s ease; overflow: hidden;
   }
   #splash.hide { opacity: 0; pointer-events: none; }
-  #splash .leaf { font-size: 72px; }
+  #splash .lasso { filter: drop-shadow(0 2px 4px rgba(0,0,0,.2)); }
   #splash h1 { font-size: 40px; font-weight: 800; margin: 0; letter-spacing: -.5px; }
+  #grass { position: absolute; left: 0; right: 0; bottom: 0; line-height: 0; }
 
   /* Nav bar */
   .navbar {
@@ -143,8 +145,12 @@
 
 <!-- Splash -->
 <div id="splash">
-  <div class="leaf">🍃</div>
+  <svg class="lasso" width="92" height="92" viewBox="0 0 100 100" aria-hidden="true">
+    <ellipse cx="50" cy="40" rx="34" ry="25" fill="none" stroke="#fff" stroke-width="6"/>
+    <path d="M77,55 Q93,76 80,90 Q73,97 68,88" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  </svg>
   <h1>Lawn Rangers</h1>
+  <div id="grass"></div>
 </div>
 
 <!-- Home -->
@@ -248,7 +254,23 @@
   function save() { localStorage.setItem(STORE, JSON.stringify(entries)); }
 
   // --- Splash -------------------------------------------------------------
+  buildGrass();
   setTimeout(() => document.getElementById("splash").classList.add("hide"), 1800);
+
+  function buildGrass(){
+    const w = Math.max(window.innerWidth, 320), count = 28, h = 90;
+    const sp = w / (count - 1);
+    let blades = "";
+    for (let i = 0; i < count; i++){
+      const x = i * sp;
+      const bh = h * (0.45 + 0.55 * Math.abs(Math.sin(i * 1.27)));
+      const lean = Math.sin(i * 0.9) * 16;
+      const shade = i % 2 ? "#2b8a36" : "#1a6322";
+      blades += `<path fill="${shade}" d="M${(x-7).toFixed(1)},${h} Q${(x-2).toFixed(1)},${(h-bh*0.5).toFixed(1)} ${(x+lean).toFixed(1)},${(h-bh).toFixed(1)} Q${(x+2).toFixed(1)},${(h-bh*0.5).toFixed(1)} ${(x+7).toFixed(1)},${h} Z"/>`;
+    }
+    document.getElementById("grass").innerHTML =
+      `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${blades}</svg>`;
+  }
 
   // --- Menu ---------------------------------------------------------------
   function toggleMenu(){ const m=document.getElementById("menu"); const s=document.getElementById("scrim");
