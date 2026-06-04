@@ -3,7 +3,6 @@ import SwiftData
 
 /// "Log an Expense" — exact copy of the "Overhead Expense" form.
 struct LogExpenseView: View {
-    @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
     @State private var expenses: String = ""
@@ -71,7 +70,6 @@ struct LogExpenseView: View {
             amount: amount.trimmingCharacters(in: .whitespacesAndNewlines),
             comment: comment.trimmingCharacters(in: .whitespacesAndNewlines)
         )
-        context.insert(expense)
         let payload = expense.sheetPayload()
         Task { await SheetSubmitter.submit(payload) }
         dismiss()

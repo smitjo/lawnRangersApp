@@ -3,7 +3,6 @@ import SwiftData
 
 /// "Log a Lawn" — exact copy of the "Lawn Mowing Wizard - 2025 Daily Log" form.
 struct LogLawnView: View {
-    @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
     /// Previously entered locations, used to grow the "Where?" dropdown.
@@ -196,7 +195,6 @@ struct LogLawnView: View {
             teammemberPaid: teammemberPaid,
             note: note.trimmingCharacters(in: .whitespacesAndNewlines)
         )
-        context.insert(log)
         let payload = log.sheetPayload()
         Task { await SheetSubmitter.submit(payload) }
         dismiss()

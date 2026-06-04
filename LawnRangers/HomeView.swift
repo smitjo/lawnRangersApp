@@ -1,15 +1,16 @@
 import SwiftUI
-import SwiftData
 
 struct HomeView: View {
-    @Query(sort: \LawnLog.timestamp, order: .reverse) private var lawnLogs: [LawnLog]
-    @Query(sort: \Expense.timestamp, order: .reverse) private var expenses: [Expense]
+    @State private var lawns: [SheetLawn] = []
+    @State private var expenses: [SheetExpense] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
 
     @State private var activeSheet: ActiveSheet?
     @State private var showingSettings = false
 
     /// The two entry types reachable from the "+" dropdown in the top-right.
-    private enum ActiveSheet: Identifiable {
+    private enum ActiveSheet: Identifiable, Equatable {
         case logLawn
         case logExpense
         var id: Int { hashValue }
@@ -17,86 +18,97 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if lawnLogs.isEmpty && expenses.isEmpty {
-                    emptyState
-                } else {
-                    activityList
-                }
-            }
-            .navigationTitle("Lawn Rangers")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .accessibilityLabel("Settings")
+            content
+                .navigationTitle("Lawn Rangers")
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { showingSettings = true } label: {
+                            Image(systemName: "gearshape").accessibilityLabel("Settings")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { Task { await load() } } label: {
+                            Image(systemName: "arrow.clockwise").accessibilityLabel("Refresh")
+                        }
+                        .disabled(isLoading)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button { activeSheet = .logLawn } label: {
+                                Label("Log a Lawn", systemImage: "leaf")
+                            }
+                            Button { activeSheet = .logExpense } label: {
+                                Label("Log an Expense", systemImage: "dollarsign.circle")
+                            }
+                        } label: {
+                            Image(systemName: "plus").accessibilityLabel("Add entry")
+                        }
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    // The "+" dropdown menu.
-                    Menu {
-                        Button {
-                            activeSheet = .logLawn
-                        } label: {
-                            Label("Log a Lawn", systemImage: "leaf")
-                        }
-                        Button {
-                            activeSheet = .logExpense
-                        } label: {
-                            Label("Log an Expense", systemImage: "dollarsign.circle")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                            .accessibilityLabel("Add entry")
+                .sheet(item: $activeSheet) { sheet in
+                    switch sheet {
+                    case .logLawn: LogLawnView()
+                    case .logExpense: LogExpenseView()
                     }
                 }
-            }
-            .sheet(item: $activeSheet) { sheet in
-                switch sheet {
-                case .logLawn:
-                    LogLawnView()
-                case .logExpense:
-                    LogExpenseView()
+                .sheet(isPresented: $showingSettings) { SettingsView() }
+                .task { if lawns.isEmpty && expenses.isEmpty { await load() } }
+                .refreshable { await load() }
+                .onChange(of: activeSheet) { _, newValue in
+                    // A form was just dismissed — give the sheet a moment to record, then refresh.
+                    if newValue == nil {
+                        Task {
+                            try? await Task.sleep(for: .seconds(1.2))
+                            await load()
+                        }
+                    }
                 }
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
         }
     }
 
-    // MARK: - Empty state
+    // MARK: - Content states
 
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("No entries yet", systemImage: "tray")
-        } description: {
-            Text("Tap the + button in the top-right to log a lawn or an expense.")
+    @ViewBuilder
+    private var content: some View {
+        if isLoading && lawns.isEmpty && expenses.isEmpty {
+            ProgressView("Loading…").frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let errorMessage, lawns.isEmpty && expenses.isEmpty {
+            ContentUnavailableView {
+                Label("Couldn’t load", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text(errorMessage)
+            } actions: {
+                Button("Try Again") { Task { await load() } }
+            }
+        } else if lawns.isEmpty && expenses.isEmpty {
+            ContentUnavailableView {
+                Label("No entries yet", systemImage: "tray")
+            } description: {
+                Text("Tap the + button in the top-right to log a lawn or an expense.")
+            }
+        } else {
+            activityList
         }
     }
-
-    // MARK: - Activity list
 
     private var activityList: some View {
         List {
-            if !lawnLogs.isEmpty {
+            if !lawns.isEmpty {
                 Section("Lawns") {
-                    ForEach(lawnLogs) { log in
+                    ForEach(Array(lawns.reversed().enumerated()), id: \.offset) { _, log in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(log.whereLocation.isEmpty ? "Lawn" : log.whereLocation)
+                            Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
                                 .font(.headline)
                             HStack {
-                                Text(log.timestamp, style: .date)
+                                Text(log.date ?? "")
                                 Spacer()
-                                Text(log.howMuch)
+                                Text(log.howMuch ?? "")
                             }
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             HStack(spacing: 12) {
-                                Label("Customer: \(log.customerPaid)", systemImage: "person")
-                                Label("Team: \(log.teammemberPaid)", systemImage: "person.2")
+                                Label("Customer: \(log.customerPaid ?? "")", systemImage: "person")
+                                Label("Team: \(log.teammemberPaid ?? "")", systemImage: "person.2")
                             }
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -106,14 +118,14 @@ struct HomeView: View {
             }
             if !expenses.isEmpty {
                 Section("Expenses") {
-                    ForEach(expenses) { expense in
+                    ForEach(Array(expenses.reversed().enumerated()), id: \.offset) { _, expense in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(expense.expenses.isEmpty ? "Expense" : expense.expenses)
+                            Text(expense.expenses?.isEmpty == false ? expense.expenses! : "Expense")
                                 .font(.headline)
                             HStack {
-                                Text(expense.timestamp, style: .date)
+                                Text(expense.date ?? "")
                                 Spacer()
-                                Text(expense.amount)
+                                Text(expense.amount ?? "")
                             }
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -123,9 +135,23 @@ struct HomeView: View {
             }
         }
     }
+
+    // MARK: - Load
+
+    private func load() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            let result = try await EntriesService.fetch()
+            lawns = result.lawns
+            expenses = result.expenses
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
 }
 
 #Preview {
     HomeView()
-        .modelContainer(for: [LawnLog.self, Expense.self], inMemory: true)
 }

@@ -53,7 +53,9 @@ On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
 | `LawnRangers/RootView.swift` | Drives the splash → home transition with a `Task`-based delay. |
 | `LawnRangers/Views/SplashView.swift` | Brand splash: a lasso motif + "Lawn Rangers" on a green gradient, with a row of grass (`GrassView`, a `Canvas`) along the bottom — the lasso taming the grass. Defines the `Color.lawnGreen` extension (`#2E7D32`). |
 | `LawnRangers/MainTabView.swift` | Tab bar hosting the **Lawns** (`HomeView`) and **Planning** (`PlanningView`) tabs. |
-| `LawnRangers/HomeView.swift` | Home list of recent lawns/expenses, the `+` dropdown (`Menu`), the settings gear, and sheet presentation. |
+| `LawnRangers/HomeView.swift` | "Lawns" tab: reads the current Lawn Log + Overhead Expense rows **from the sheet** (mirrors adds/deletes), the `+` dropdown (`Menu`), the settings gear, sheet presentation, and auto-refresh after submitting. |
+| `LawnRangers/Backend/EntriesService.swift` | `async` GET of `?action=entries`; decodes `EntriesResponse` (lawns + expenses). |
+| `LawnRangers/Models/SheetEntry.swift` | `SheetLawn` / `SheetExpense` — decodable rows read back from the sheet for Home. |
 | `LawnRangers/Views/PlanningView.swift` | Planning tab: customers + days since mowed, color-coded green→red by overdue (days vs. interval), with phone/next-date. Loads from the sheet; pull-to-refresh. |
 | `LawnRangers/Backend/PlanningService.swift` | `async` GET of `?action=planning` from the Web App; decodes `PlanningResponse`. |
 | `LawnRangers/Models/PlanningCustomer.swift` | Decodable row from the "Planning" sheet (customer, interval, last mowed, days since mowed, due in). |

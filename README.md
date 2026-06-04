@@ -7,8 +7,9 @@ of an existing Google Form:
 - **Log a Lawn** — copies the *Lawn Mowing Wizard - 2025 Daily Log* form.
 - **Log an Expense** — copies the *Overhead Expense* form.
 
-Entries are saved on-device (SwiftData) and posted to the Google Sheet through a
-built-in backend URL baked into the app.
+Entries are submitted to the Google Sheet (via a built-in backend URL baked into
+the app), and the **Home** and **Planning** screens read live from the sheet — so
+the app mirrors the sheet, reflecting both additions and deletions.
 
 ## Requirements
 

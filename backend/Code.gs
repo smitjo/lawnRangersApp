@@ -93,11 +93,23 @@ function doPost(e) {
   }
 }
 
-// Read endpoint for the app's Planning tab. Returns the rows of the "Planning"
-// sheet: Customer (A), Mow Every days (B), Last Mowed (C), Days Since Mowed (D),
-// Due In days (E). Days Since Mowed / Last Mowed / Due In are sheet formulas
-// computed from the "Lawn Log" entries.
+// Read endpoint. ?action=planning (default) returns the Planning rows;
+// ?action=entries returns the current Lawn Log + Overhead Expense rows so the
+// app can mirror the sheet (reflecting adds and deletions).
 function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'planning';
+  var out = (action === 'entries') ? readEntries() : readPlanning();
+
+  var payload = JSON.stringify(out);
+  var cb = (e && e.parameter) ? e.parameter.callback : null;
+  if (cb) {
+    return ContentService.createTextOutput(cb + '(' + payload + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+}
+
+function readPlanning() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var out = { planning: [] };
   try {
@@ -120,14 +132,50 @@ function doGet(e) {
   } catch (err) {
     out.error = String(err);
   }
+  return out;
+}
 
-  var payload = JSON.stringify(out);
-  var cb = (e && e.parameter) ? e.parameter.callback : null;
-  if (cb) {
-    return ContentService.createTextOutput(cb + '(' + payload + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+function readEntries() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var out = { lawns: [], expenses: [] };
+  var tz = ss.getSpreadsheetTimeZone();
+  try {
+    var lawn = ss.getSheetByName(LAWN_TAB);
+    if (lawn && lawn.getLastRow() >= FIRST_DATA_ROW) {
+      var n = lawn.getLastRow() - FIRST_DATA_ROW + 1;
+      var rows = lawn.getRange(FIRST_DATA_ROW, 1, n, 7).getValues();
+      rows.forEach(function (r) {
+        if (!r[1] && !r[3]) return;
+        out.lawns.push({
+          date: (r[0] instanceof Date) ? Utilities.formatDate(r[0], tz, 'MMM d, yyyy') : str(r[0]),
+          where: str(r[1]),
+          who: str(r[2]),
+          howMuch: str(r[3]),
+          customerPaid: str(r[4]),
+          teammemberPaid: str(r[5]),
+          note: str(r[6])
+        });
+      });
+    }
+
+    var ex = ss.getSheetByName(EXPENSE_TAB);
+    if (ex && ex.getLastRow() >= 2) {
+      var m = ex.getLastRow() - 1;
+      var er = ex.getRange(2, 1, m, 4).getValues();
+      er.forEach(function (r) {
+        if (!r[1]) return;
+        out.expenses.push({
+          date: (r[0] instanceof Date) ? Utilities.formatDate(r[0], tz, 'MMM d, yyyy') : str(r[0]),
+          expenses: str(r[1]),
+          amount: str(r[2]),
+          comment: str(r[3])
+        });
+      });
+    }
+  } catch (err) {
+    out.error = String(err);
   }
-  return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  return out;
 }
 
 // ── Per-row formulas for the calculated columns (H–N) ───────────────────────
