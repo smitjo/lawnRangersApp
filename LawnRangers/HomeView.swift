@@ -125,7 +125,7 @@ struct HomeView: View {
                             HStack {
                                 Text(expense.date ?? "")
                                 Spacer()
-                                Text(expense.amount ?? "")
+                                Text(currencyFormatted(expense.amount))
                             }
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -134,6 +134,17 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    /// Formats a raw amount string as USD currency (e.g. "50" → "$50.00").
+    /// Falls back to the raw text if it isn't numeric.
+    private func currencyFormatted(_ raw: String?) -> String {
+        guard let raw, !raw.isEmpty else { return "" }
+        let cleaned = raw.filter { $0.isNumber || $0 == "." }
+        if !cleaned.isEmpty, let value = Double(cleaned) {
+            return value.formatted(.currency(code: "USD"))
+        }
+        return raw
     }
 
     // MARK: - Load
