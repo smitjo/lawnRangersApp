@@ -36,6 +36,7 @@
 var LAWN_TAB = 'Lawn Log';
 var EXPENSE_TAB = 'Overhead Expense';
 var RATES_TAB = 'Rates';
+var PLANNING_TAB = 'Lawns due, 2025';   // read by the app's Planning tab
 
 // Lawn tab layout
 var HEADER_ROW = 3;        // row 1 = Total Earned, row 2 = Unpaid amount, row 3 = headers
@@ -92,8 +93,44 @@ function doPost(e) {
   }
 }
 
-function doGet() {
-  return json({ result: 'ok', message: 'Lawn Rangers backend is live.' });
+// Read endpoint for the app's Planning tab: returns the rows of the
+// "Lawns due, 2025" sheet (Customer, Days Since Mowed, Next date, Address,
+// Notes, Interval, Loop, Price, Phone — columns A–I).
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var out = { planning: [] };
+  try {
+    var sh = ss.getSheetByName(PLANNING_TAB);
+    if (sh && sh.getLastRow() >= 2) {
+      var n = sh.getLastRow() - 1;
+      var rows = sh.getRange(2, 1, n, 9).getValues();
+      var tz = ss.getSpreadsheetTimeZone();
+      rows.forEach(function (r) {
+        if (!r[0]) return;
+        out.planning.push({
+          customer: str(r[0]),
+          daysSinceMowed: (typeof r[1] === 'number') ? Math.round(r[1]) : null,
+          nextDate: (r[2] instanceof Date) ? Utilities.formatDate(r[2], tz, 'MMM d') : str(r[2]),
+          address: str(r[3]),
+          notes: str(r[4]),
+          interval: (typeof r[5] === 'number') ? r[5] : null,
+          loop: str(r[6]),
+          price: (typeof r[7] === 'number') ? '$' + r[7] : str(r[7]),
+          phone: str(r[8])
+        });
+      });
+    }
+  } catch (err) {
+    out.error = String(err);
+  }
+
+  var payload = JSON.stringify(out);
+  var cb = (e && e.parameter) ? e.parameter.callback : null;
+  if (cb) {
+    return ContentService.createTextOutput(cb + '(' + payload + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ── Per-row formulas for the calculated columns (H–N) ───────────────────────
@@ -179,3 +216,5 @@ function json(obj) {
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+function str(v) { return (v === null || v === undefined) ? '' : String(v); }

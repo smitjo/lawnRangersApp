@@ -7,7 +7,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             if isActive {
-                HomeView()
+                MainTabView()
                     .transition(.opacity)
             } else {
                 SplashView()

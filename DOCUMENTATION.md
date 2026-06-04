@@ -27,17 +27,20 @@ also posted to a Google Apps Script Web App that appends them to a spreadsheet.
 
 ```
 LawnRangersApp (@main)
-  └─ RootView                 splash → home transition
-       ├─ SplashView          brand green "Lawn Rangers", ~1.8s
-       └─ HomeView            list of entries + toolbar
-            ├─ "+" menu  ──▶  LogLawnView      (sheet)
-            ├─ "+" menu  ──▶  LogExpenseView   (sheet)
-            └─ gear      ──▶  SettingsView      (sheet)
+  └─ RootView                 splash → tabs transition
+       ├─ SplashView          lasso + grass "Lawn Rangers", ~1.8s
+       └─ MainTabView         tab bar
+            ├─ HomeView       "Lawns": list of entries + toolbar
+            │    ├─ "+" menu ─▶ LogLawnView    (sheet)
+            │    ├─ "+" menu ─▶ LogExpenseView (sheet)
+            │    └─ gear     ─▶ SettingsView   (sheet)
+            └─ PlanningView   "Planning": customers + days since mowed (from sheet)
 ```
 
 On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
-`HomeView`. The home screen's top-right **`+`** opens a dropdown menu with
-**Log a Lawn** and **Log an Expense**; the top-left **gear** opens **Settings**.
+`MainTabView`. The **Lawns** tab is `HomeView` (top-right **`+`** menu →
+**Log a Lawn** / **Log an Expense**; top-left **gear** → **Settings**). The
+**Planning** tab is `PlanningView`.
 
 ---
 
@@ -49,7 +52,11 @@ On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
 | `LawnRangers/LawnRangersApp.swift` | `@main` entry. Builds the SwiftData `ModelContainer` for `LawnLog` + `Expense`, hosts `RootView`, forces dark mode via `.preferredColorScheme(.dark)`. |
 | `LawnRangers/RootView.swift` | Drives the splash → home transition with a `Task`-based delay. |
 | `LawnRangers/Views/SplashView.swift` | Brand splash: a lasso motif + "Lawn Rangers" on a green gradient, with a row of grass (`GrassView`, a `Canvas`) along the bottom — the lasso taming the grass. Defines the `Color.lawnGreen` extension (`#2E7D32`). |
+| `LawnRangers/MainTabView.swift` | Tab bar hosting the **Lawns** (`HomeView`) and **Planning** (`PlanningView`) tabs. |
 | `LawnRangers/HomeView.swift` | Home list of recent lawns/expenses, the `+` dropdown (`Menu`), the settings gear, and sheet presentation. |
+| `LawnRangers/Views/PlanningView.swift` | Planning tab: customers + days since mowed, color-coded green→red by overdue (days vs. interval), with phone/next-date. Loads from the sheet; pull-to-refresh. |
+| `LawnRangers/Backend/PlanningService.swift` | `async` GET of `?action=planning` from the Web App; decodes `PlanningResponse`. |
+| `LawnRangers/Models/PlanningCustomer.swift` | Decodable row from the "Lawns due, 2025" sheet. |
 
 ### Entry screens
 | File | Responsibility |
@@ -129,6 +136,13 @@ Builds three tabs:
 ### `doPost(e)` — receives app submissions
 Routes by `type`, appends the answer columns, and for lawn rows writes the
 calculated columns H–N.
+
+### `doGet(e)` — feeds the Planning tab
+Reads the **"Lawns due, 2025"** tab (columns A–I: Customer, Days Since Mowed,
+Next date, Address, Notes, Interval, Loop, Price, Phone) and returns
+`{ planning: [...] }` as JSON. Requires the deployed script to be bound to the
+spreadsheet that contains that tab; redeploy (Manage deployments → new version)
+after adding it so the same `/exec` URL serves it.
 
 ### Calculated columns (the math)
 Let **Rate** be the number in "How much?", or the customer's Standard Rate from
