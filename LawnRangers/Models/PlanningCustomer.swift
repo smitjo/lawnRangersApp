@@ -1,18 +1,14 @@
 import Foundation
 
-/// One row from the "Lawns due, 2025" sheet, read for the Planning tab.
+/// One row from the app's "Planning" sheet.
 struct PlanningCustomer: Decodable, Identifiable {
     let customer: String
-    let daysSinceMowed: Double?
-    let nextDate: String?
-    let address: String?
-    let notes: String?
-    let interval: Double?
-    let loop: String?
-    let price: String?
-    let phone: String?
+    let interval: Double?        // mow every N days
+    let lastMowed: String?       // formatted date, or "" if never mowed
+    let daysSinceMowed: Double?  // nil if never mowed
+    let dueIn: Double?           // interval − daysSinceMowed (negative = overdue)
 
-    var id: String { customer + "|" + (address ?? "") }
+    var id: String { customer }
 }
 
 struct PlanningResponse: Decodable {

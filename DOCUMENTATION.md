@@ -56,7 +56,7 @@ On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
 | `LawnRangers/HomeView.swift` | Home list of recent lawns/expenses, the `+` dropdown (`Menu`), the settings gear, and sheet presentation. |
 | `LawnRangers/Views/PlanningView.swift` | Planning tab: customers + days since mowed, color-coded green→red by overdue (days vs. interval), with phone/next-date. Loads from the sheet; pull-to-refresh. |
 | `LawnRangers/Backend/PlanningService.swift` | `async` GET of `?action=planning` from the Web App; decodes `PlanningResponse`. |
-| `LawnRangers/Models/PlanningCustomer.swift` | Decodable row from the "Lawns due, 2025" sheet. |
+| `LawnRangers/Models/PlanningCustomer.swift` | Decodable row from the "Planning" sheet (customer, interval, last mowed, days since mowed, due in). |
 
 ### Entry screens
 | File | Responsibility |
@@ -138,11 +138,14 @@ Routes by `type`, appends the answer columns, and for lawn rows writes the
 calculated columns H–N.
 
 ### `doGet(e)` — feeds the Planning tab
-Reads the **"Lawns due, 2025"** tab (columns A–I: Customer, Days Since Mowed,
-Next date, Address, Notes, Interval, Loop, Price, Phone) and returns
-`{ planning: [...] }` as JSON. Requires the deployed script to be bound to the
-spreadsheet that contains that tab; redeploy (Manage deployments → new version)
-after adding it so the same `/exec` URL serves it.
+Reads the **"Planning"** tab (built by `setupSpreadsheet`) and returns
+`{ planning: [...] }` as JSON. Columns: Customer (A), Mow Every days (B),
+Last Mowed (C), Days Since Mowed (D), Due In days (E). C/D/E are sheet formulas:
+**Last Mowed** = `MAXIFS` of the Lawn Log timestamps for that customer,
+**Days Since Mowed** = `TODAY()` − Last Mowed, **Due In** = interval − Days
+Since Mowed. So planning updates automatically as lawns are logged in the app.
+Redeploy (Manage deployments → new version) after updating `Code.gs` so the same
+`/exec` URL serves it.
 
 ### Calculated columns (the math)
 Let **Rate** be the number in "How much?", or the customer's Standard Rate from

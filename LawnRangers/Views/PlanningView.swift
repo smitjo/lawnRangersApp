@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// Planning tab — each customer and how many days since their lawn was mowed,
-/// color-coded green → red by how overdue they are (days vs. mowing interval).
-/// Data comes live from the "Lawns due, 2025" sheet.
+/// Planning tab — each customer, how many days since their lawn was mowed
+/// (computed from logged lawns), and how often it should be mowed. Color-coded
+/// green → red by how overdue they are. Data comes live from the "Planning" sheet.
 struct PlanningView: View {
     @State private var customers: [PlanningCustomer] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    /// Most overdue first.
+    /// Most overdue first (never-mowed customers sink to the bottom).
     private var sorted: [PlanningCustomer] {
         customers.sorted { ($0.daysSinceMowed ?? -1) > ($1.daysSinceMowed ?? -1) }
     }
@@ -19,9 +19,7 @@ struct PlanningView: View {
                 .navigationTitle("Planning")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            Task { await load() }
-                        } label: {
+                        Button { Task { await load() } } label: {
                             Image(systemName: "arrow.clockwise")
                         }
                         .disabled(isLoading)
@@ -49,7 +47,7 @@ struct PlanningView: View {
             ContentUnavailableView(
                 "No customers",
                 systemImage: "person.2.slash",
-                description: Text("No rows found on the ‘Lawns due, 2025’ sheet.")
+                description: Text("Add customers to the ‘Planning’ tab of the sheet.")
             )
         } else {
             List(sorted) { row($0) }
@@ -62,27 +60,18 @@ struct PlanningView: View {
             daysBadge(c)
             VStack(alignment: .leading, spacing: 3) {
                 Text(c.customer).font(.headline)
-                if let address = c.address, !address.isEmpty {
-                    Text(address).font(.subheadline).foregroundStyle(.secondary)
+                if let interval = c.interval {
+                    Text("Mow every \(Int(interval)) days")
+                        .font(.subheadline).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 6) {
-                    if let loop = c.loop, !loop.isEmpty { Text(loop) }
-                    if let interval = c.interval { Text("• every \(Int(interval))d") }
-                    if let price = c.price, !price.isEmpty { Text("• \(price)") }
+                    Text(dueText(c))
+                    if let last = c.lastMowed, !last.isEmpty {
+                        Text("• last \(last)")
+                    }
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
-                HStack(spacing: 14) {
-                    if let next = c.nextDate, !next.isEmpty {
-                        Label(next, systemImage: "calendar")
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
-                    if let phone = c.phone, !phone.isEmpty, let url = telURL(phone) {
-                        Link(destination: url) {
-                            Label(phone, systemImage: "phone.fill").font(.caption2)
-                        }
-                    }
-                }
+                .foregroundStyle(dueColor(c))
             }
             Spacer(minLength: 0)
         }
@@ -90,24 +79,32 @@ struct PlanningView: View {
     }
 
     private func daysBadge(_ c: PlanningCustomer) -> some View {
-        let days = c.daysSinceMowed
-        let text: String = {
-            guard let d = days, d <= 900 else { return "—" }
-            return "\(Int(d))"
-        }()
+        let text = c.daysSinceMowed.map { "\(Int($0))" } ?? "—"
         return VStack(spacing: 0) {
             Text(text).font(.title3.bold())
             Text("days").font(.system(size: 9))
         }
         .frame(width: 54, height: 54)
-        .background(overdueColor(days: days, interval: c.interval))
+        .background(overdueColor(days: c.daysSinceMowed, interval: c.interval))
         .foregroundStyle(.white)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    private func dueText(_ c: PlanningCustomer) -> String {
+        guard c.daysSinceMowed != nil, let due = c.dueIn else { return "Not mowed yet" }
+        if due < 0 { return "Overdue by \(-Int(due)) d" }
+        if due == 0 { return "Due today" }
+        return "Due in \(Int(due)) d"
+    }
+
+    private func dueColor(_ c: PlanningCustomer) -> Color {
+        guard c.daysSinceMowed != nil, let due = c.dueIn else { return .secondary }
+        return due <= 0 ? Color(red: 0.80, green: 0.20, blue: 0.15) : .secondary
+    }
+
     /// Green when freshly mowed, ramping to red once past the mowing interval.
     private func overdueColor(days: Double?, interval: Double?) -> Color {
-        guard let d = days, d <= 900 else { return .gray }
+        guard let d = days else { return .gray }
         let i = interval ?? 14
         let ratio = i > 0 ? d / i : 0
         switch ratio {
@@ -117,12 +114,6 @@ struct PlanningView: View {
         case ..<1.5:  return Color(red: 0.90, green: 0.50, blue: 0.10) // orange
         default:      return Color(red: 0.80, green: 0.20, blue: 0.15) // red
         }
-    }
-
-    private func telURL(_ phone: String) -> URL? {
-        let digits = phone.filter(\.isNumber)
-        guard digits.count >= 7 else { return nil }
-        return URL(string: "tel://\(digits.prefix(11))")
     }
 
     private func load() async {
