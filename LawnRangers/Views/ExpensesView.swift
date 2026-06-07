@@ -1,17 +1,20 @@
 import SwiftUI
 
-struct HomeView: View {
-    @State private var lawns: [SheetLawn] = []
+/// "Expenses" tab — mirrors the Lawns (Home) tab, but for overhead expenses.
+/// Reads the current Overhead Expense rows live from the sheet and lets you log
+/// a new expense from the "+" button in the top-right.
+struct ExpensesView: View {
+    @State private var expenses: [SheetExpense] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    @State private var showingLogLawn = false
+    @State private var showingLogExpense = false
     @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Lawn Rangers")
+                .navigationTitle("Expenses")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { showingSettings = true } label: {
@@ -25,16 +28,16 @@ struct HomeView: View {
                         .disabled(isLoading)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button { showingLogLawn = true } label: {
-                            Image(systemName: "plus").accessibilityLabel("Log a lawn")
+                        Button { showingLogExpense = true } label: {
+                            Image(systemName: "plus").accessibilityLabel("Log an expense")
                         }
                     }
                 }
-                .sheet(isPresented: $showingLogLawn) { LogLawnView() }
+                .sheet(isPresented: $showingLogExpense) { LogExpenseView() }
                 .sheet(isPresented: $showingSettings) { SettingsView() }
-                .task { if lawns.isEmpty { await load() } }
+                .task { if expenses.isEmpty { await load() } }
                 .refreshable { await load() }
-                .onChange(of: showingLogLawn) { _, isShowing in
+                .onChange(of: showingLogExpense) { _, isShowing in
                     // A form was just dismissed — give the sheet a moment to record, then refresh.
                     if !isShowing {
                         Task {
@@ -50,9 +53,9 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if isLoading && lawns.isEmpty {
+        if isLoading && expenses.isEmpty {
             ProgressView("Loading…").frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, lawns.isEmpty {
+        } else if let errorMessage, expenses.isEmpty {
             ContentUnavailableView {
                 Label("Couldn’t load", systemImage: "wifi.exclamationmark")
             } description: {
@@ -60,39 +63,49 @@ struct HomeView: View {
             } actions: {
                 Button("Try Again") { Task { await load() } }
             }
-        } else if lawns.isEmpty {
+        } else if expenses.isEmpty {
             ContentUnavailableView {
-                Label("No lawns yet", systemImage: "tray")
+                Label("No expenses yet", systemImage: "tray")
             } description: {
-                Text("Tap the + button in the top-right to log a lawn.")
+                Text("Tap the + button in the top-right to log an expense.")
             }
         } else {
-            lawnList
+            expenseList
         }
     }
 
-    private var lawnList: some View {
+    private var expenseList: some View {
         List {
-            ForEach(Array(lawns.reversed().enumerated()), id: \.offset) { _, log in
+            ForEach(Array(expenses.reversed().enumerated()), id: \.offset) { _, expense in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
+                    Text(expense.expenses?.isEmpty == false ? expense.expenses! : "Expense")
                         .font(.headline)
                     HStack {
-                        Text(log.date ?? "")
+                        Text(expense.date ?? "")
                         Spacer()
-                        Text(log.howMuch ?? "")
+                        Text(currencyFormatted(expense.amount))
                     }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    HStack(spacing: 12) {
-                        Label("Customer: \(log.customerPaid ?? "")", systemImage: "person")
-                        Label("Team: \(log.teammemberPaid ?? "")", systemImage: "person.2")
+                    if let comment = expense.comment, !comment.isEmpty {
+                        Text(comment)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 }
             }
         }
+    }
+
+    /// Formats a raw amount string as USD currency (e.g. "50" → "$50.00").
+    /// Falls back to the raw text if it isn't numeric.
+    private func currencyFormatted(_ raw: String?) -> String {
+        guard let raw, !raw.isEmpty else { return "" }
+        let cleaned = raw.filter { $0.isNumber || $0 == "." }
+        if !cleaned.isEmpty, let value = Double(cleaned) {
+            return value.formatted(.currency(code: "USD"))
+        }
+        return raw
     }
 
     // MARK: - Load
@@ -102,7 +115,7 @@ struct HomeView: View {
         errorMessage = nil
         do {
             let result = try await EntriesService.fetch()
-            lawns = result.lawns
+            expenses = result.expenses
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -111,5 +124,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    ExpensesView()
 }
