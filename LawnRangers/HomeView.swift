@@ -78,26 +78,48 @@ struct HomeView: View {
         lawns.sorted { ($0.ts ?? 0) > ($1.ts ?? 0) }
     }
 
+    /// Whether nothing was mowed in the last 24 hours, so the tab falls back to
+    /// the 5 most recent lawns instead of "the last day".
+    private var isShowingRecentFallback: Bool {
+        let cutoff = Date().timeIntervalSince1970 * 1000 - 86_400_000  // 24h ago, epoch ms
+        return !sortedLawns.contains { ($0.ts ?? 0) >= cutoff }
+    }
+
+    /// What the Lawns tab shows: lawns mowed in the last 24 hours; if there are
+    /// none, the 5 most recent instead. Driven entirely by the in-app timestamp,
+    /// so it stays independent of any filter/sort applied on the sheet.
+    private var displayedLawns: [SheetLawn] {
+        let cutoff = Date().timeIntervalSince1970 * 1000 - 86_400_000  // 24h ago, epoch ms
+        let lastDay = sortedLawns.filter { ($0.ts ?? 0) >= cutoff }
+        return lastDay.isEmpty ? Array(sortedLawns.prefix(5)) : lastDay
+    }
+
     private var lawnList: some View {
         List {
-            ForEach(Array(sortedLawns.enumerated()), id: \.offset) { _, log in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
-                        .font(.headline)
-                    HStack {
-                        Text(log.date ?? "")
-                        Spacer()
-                        Text(log.howMuch ?? "")
+            Section {
+                ForEach(Array(displayedLawns.enumerated()), id: \.offset) { _, log in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
+                            .font(.headline)
+                        HStack {
+                            Text(log.date ?? "")
+                            Spacer()
+                            Text(log.howMuch ?? "")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        HStack(spacing: 12) {
+                            Label("Customer: \(log.customerPaid ?? "")", systemImage: "person")
+                            Label("Team: \(log.teammemberPaid ?? "")", systemImage: "person.2")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    HStack(spacing: 12) {
-                        Label("Customer: \(log.customerPaid ?? "")", systemImage: "person")
-                        Label("Team: \(log.teammemberPaid ?? "")", systemImage: "person.2")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 }
+            } footer: {
+                Text(isShowingRecentFallback
+                     ? "No lawns in the last 24 hours — showing the 5 most recent."
+                     : "Showing lawns from the last 24 hours.")
             }
         }
     }
