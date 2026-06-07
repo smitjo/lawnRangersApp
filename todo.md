@@ -1,34 +1,61 @@
 # Lawn Rangers — TODO Queue
 
-> Working backlog. The **Expenses tab** primary move is done (it now has its own
-> tab mirroring Lawns). The items below are the deferred "secondary
-> implementation" parity work plus the remaining open items from the project
-> handoff.
+> Working backlog. Expenses have been **removed from the Lawns tab** (Lawns is
+> now lawns-only). The Expenses **tab itself is not built yet** — it's specced
+> below as a future task. When the user asks to "add the expenses tab," build it
+> from this spec rather than inventing a new design.
 
 ---
 
-## A. Expenses tab — secondary implementation (deferred)
+## A. Build the Expenses tab (NOT built yet — primary future task)
 
-The Expenses tab now lives in its own tab (`Views/ExpensesView.swift`) and
-behaves like Lawns: live sheet read, `+` to log, refresh, settings, auto-refresh
-after submit, and empty/error states. Remaining parity / polish:
+Add a third tab, **Expenses**, that behaves almost exactly like the Lawns tab
+(`HomeView`). This is the deferred work the user asked to defer to this file.
 
-- [ ] **Dedicated expenses fetch.** Both the Lawns and Expenses tabs call
-  `EntriesService.fetch()`, which pulls *both* lawns and expenses every time.
-  Add an expenses-only path (e.g. `?action=expenses`, or a separate service) so
-  the Expenses tab doesn't over-fetch lawn data it ignores.
-- [ ] **Expenses total / summary.** Show a running total (sum of amounts) at the
-  top, similar to the sheet's "Total Earned" summary rows.
-- [ ] **Swipe-to-delete (and keep in sync with the sheet).** Mirror whatever
-  delete behavior Lawns gets; needs a backend delete endpoint in `Code.gs`.
-- [ ] **Shared row/list components.** `HomeView` and `ExpensesView` duplicate the
-  list scaffolding, the `currencyFormatted` helper, and the empty/error/loading
-  states. Extract a shared row view + helpers to avoid drift.
-- [ ] **Grouping / filtering.** Optionally group expenses by month or category
-  once categories exist.
-- [ ] **Build verification.** Confirm in Xcode that the new tab compiles, the
-  `+` logs an expense, and the list refreshes after submit (cannot compile here —
-  no Xcode in this environment).
+**Current interim state to be aware of:** expenses were removed from the Lawns
+tab, and the "Log an Expense" action went with them, so **there is currently no
+in-app way to view or log expenses** until this tab is built. (`LogExpenseView`
+and the `Expense` model still exist, unused, ready to be wired back in.)
+
+### Spec (mirror `HomeView` / Lawns)
+
+- **New file:** `LawnRangers/Views/ExpensesView.swift` (Xcode uses
+  `PBXFileSystemSynchronizedRootGroup`, so no `project.pbxproj` edit needed).
+- **Wire into `MainTabView`** between Lawns and Planning:
+  `ExpensesView().tabItem { Label("Expenses", systemImage: "dollarsign.circle.fill") }`
+- **Data:** read live from the sheet via `EntriesService.fetch()`, using only
+  `result.expenses` (`[SheetExpense]`). (Lawns uses the same call's `.lawns`.)
+- **Toolbar (same layout as `HomeView`):**
+  - top-leading: gear → `SettingsView` (sheet)
+  - top-trailing: refresh button (`arrow.clockwise`), disabled while loading
+  - top-trailing: `+` button → `LogExpenseView` (sheet). Single button (not a
+    menu) since this tab only logs expenses.
+- **Navigation title:** `"Expenses"`.
+- **States (mirror `HomeView.content`):** loading `ProgressView`; error
+  `ContentUnavailableView` ("Couldn't load" + Try Again); empty
+  `ContentUnavailableView` ("No expenses yet" — "Tap the + button…").
+- **Row layout (per expense, newest first via `reversed()`):**
+  - headline: `expense.expenses` (fallback `"Expense"`)
+  - subheadline row: `expense.date` on the left, `currencyFormatted(expense.amount)` on the right
+  - caption (if present): `expense.comment`
+- **`currencyFormatted` helper:** same as the one that used to live in
+  `HomeView` — strip to digits/`.`, format `.currency(code: "USD")`, fall back to
+  raw text if non-numeric.
+- **Auto-refresh after submit:** on the log sheet dismissing, `Task.sleep(1.2s)`
+  then reload (mirror `HomeView`'s `onChange` behavior).
+- **`.task` initial load** when the list is empty, plus `.refreshable`.
+
+### Secondary parity / polish (after the tab exists)
+
+- [ ] **Dedicated expenses fetch** — add `?action=expenses` (or a separate
+  service) so the tab doesn't pull lawn data it ignores.
+- [ ] **Expenses total / summary** at the top (like the sheet's summary rows).
+- [ ] **Swipe-to-delete**, kept in sync with the sheet (needs a backend delete).
+- [ ] **Shared row/list components** — factor out the list scaffolding, the
+  `currencyFormatted` helper, and the empty/error/loading states shared with
+  `HomeView` to avoid drift.
+- [ ] **Grouping / filtering** by month or category.
+- [ ] **Build verification** in Xcode (cannot compile in the agent environment).
 
 ---
 
@@ -53,4 +80,4 @@ after submit, and empty/error states. Remaining parity / polish:
 - [x] Persist signing `DEVELOPMENT_TEAM` so it stops disappearing.
 - [x] Reconcile local/remote `main`.
 - [x] Delete redundant remote branches (`claude/...`, `experiment/load-from-sheet`).
-- [x] Move Expenses into its own tab (primary implementation).
+- [x] Remove expenses from the Lawns tab (Lawns is now lawns-only).
