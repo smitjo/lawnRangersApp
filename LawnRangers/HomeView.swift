@@ -71,9 +71,16 @@ struct HomeView: View {
         }
     }
 
+    /// Lawns ordered newest→oldest by their raw timestamp, independent of the
+    /// order the rows happen to be stored in the sheet — so any filter or sort
+    /// applied on the Google Sheet never changes the app's ordering.
+    private var sortedLawns: [SheetLawn] {
+        lawns.sorted { ($0.ts ?? 0) > ($1.ts ?? 0) }
+    }
+
     private var lawnList: some View {
         List {
-            ForEach(Array(lawns.reversed().enumerated()), id: \.offset) { _, log in
+            ForEach(Array(sortedLawns.enumerated()), id: \.offset) { _, log in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
                         .font(.headline)

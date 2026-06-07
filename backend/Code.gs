@@ -148,6 +148,7 @@ function readEntries() {
         if (!r[1] && !r[3]) return;
         out.lawns.push({
           date: (r[0] instanceof Date) ? Utilities.formatDate(r[0], tz, 'MMM d, yyyy') : str(r[0]),
+          ts: (r[0] instanceof Date) ? r[0].getTime() : 0,   // raw epoch ms so the app can sort newest→oldest itself
           where: str(r[1]),
           who: str(r[2]),
           howMuch: str(r[3]),
@@ -166,6 +167,7 @@ function readEntries() {
         if (!r[1]) return;
         out.expenses.push({
           date: (r[0] instanceof Date) ? Utilities.formatDate(r[0], tz, 'MMM d, yyyy') : str(r[0]),
+          ts: (r[0] instanceof Date) ? r[0].getTime() : 0,   // raw epoch ms so the app can sort newest→oldest itself
           expenses: str(r[1]),
           amount: str(r[2]),
           comment: str(r[3])

@@ -34,7 +34,9 @@ and the `Expense` model still exist, unused, ready to be wired back in.)
 - **States (mirror `HomeView.content`):** loading `ProgressView`; error
   `ContentUnavailableView` ("Couldn't load" + Try Again); empty
   `ContentUnavailableView` ("No expenses yet" — "Tap the + button…").
-- **Row layout (per expense, newest first via `reversed()`):**
+- **Order:** sort by `expense.ts` descending (newest first), the same way
+  `HomeView` sorts lawns — do **not** rely on `reversed()` / sheet row order.
+- **Row layout (per expense):**
   - headline: `expense.expenses` (fallback `"Expense"`)
   - subheadline row: `expense.date` on the left, `currencyFormatted(expense.amount)` on the right
   - caption (if present): `expense.comment`
@@ -61,11 +63,14 @@ and the `Expense` model still exist, unused, ready to be wired back in.)
 
 ## B. Remaining open items from the project handoff
 
-- [ ] **Backend redeploy (#3).** Update `backend/Code.gs` in the app's
-  spreadsheet, run `setupSpreadsheet` (adds the Planning tab), set each
-  customer's mow interval, then redeploy via **Manage deployments → Edit → New
-  version** (keeps the same `/exec` URL) so Planning and the Home `?action=entries`
-  mirroring work.
+- [ ] **Backend redeploy (#3) — REQUIRED for the newest→oldest sort.** The Lawns
+  tab now sorts by a raw `ts` (epoch ms) field that `readEntries` in
+  `backend/Code.gs` was just updated to send. Until the Web App is redeployed,
+  the app receives no `ts` and the sort falls back to flat order. Update
+  `backend/Code.gs` in the app's spreadsheet, run `setupSpreadsheet` (adds the
+  Planning tab), set each customer's mow interval, then redeploy via **Manage
+  deployments → Edit → New version** (keeps the same `/exec` URL) so the `ts`
+  sort, Planning, and the Home `?action=entries` mirroring all work.
 - [ ] **Confirm the deployed `/exec` binding (#4).** Verify the deployed Web App
   is bound to the app's actual spreadsheet (the one with Lawn Log / Planning).
 - [ ] **App icon (#5, optional).** Current icon is a code-generated LR-lasso

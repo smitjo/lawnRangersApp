@@ -4,6 +4,9 @@ import Foundation
 /// current state of the sheet on the Home screen).
 struct SheetLawn: Decodable {
     let date: String?
+    /// Raw epoch milliseconds from the sheet's Timestamp column, used to sort
+    /// newest→oldest in the app independently of the sheet's filter/sort state.
+    let ts: Double?
     let whereLocation: String?
     let who: String?
     let howMuch: String?
@@ -12,7 +15,7 @@ struct SheetLawn: Decodable {
     let note: String?
 
     enum CodingKeys: String, CodingKey {
-        case date
+        case date, ts
         case whereLocation = "where"
         case who, howMuch, customerPaid, teammemberPaid, note
     }
@@ -21,6 +24,8 @@ struct SheetLawn: Decodable {
 /// An expense as read back from the "Overhead Expense" sheet.
 struct SheetExpense: Decodable {
     let date: String?
+    /// Raw epoch milliseconds (see SheetLawn.ts) for newest→oldest sorting.
+    let ts: Double?
     let expenses: String?
     let amount: String?
     let comment: String?
