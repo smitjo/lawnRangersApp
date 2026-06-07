@@ -19,3 +19,6 @@ build/
 # Swift Package Manager
 .swiftpm/
 .build/
+
+# Local continuity / session notes (kept on-machine, not committed)
+lawnrangershandoff.md
