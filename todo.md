@@ -75,6 +75,23 @@ and the `Expense` model still exist, unused, ready to be wired back in.)
   (`LawnRangersApp.swift` model container) but Home no longer reads it; could be
   removed entirely.
 
+## C. Spreadsheet (Google Sheets)
+
+- [ ] **Set up filters / filter views on the Lawn Log tab** (like the 2025 lawn
+  mowing sheet). Notes for when this comes up:
+  - The Lawn Log tab has **Total Earned / Unpaid summary rows on top**, so the
+    filter range must start at the **header row** (`Timestamp | Where? | …`), not
+    the summary rows.
+  - Prefer **Filter Views** (`Data → Filter views`) over a basic filter, since
+    it's a shared sheet — a plain filter changes the view for everyone, a filter
+    view is private and saved by name.
+  - Suggested useful views to build: **"Unpaid jobs"** (Customer paid? = Unpaid),
+    **"By customer"** (sort Where? A→Z), **"Per-teammate earnings"** (filter Who?
+    / sum the per-person columns), **"This month"** (Timestamp condition).
+  - Heads-up: the iOS app appends rows via Apps Script; if a freshly-logged job
+    doesn't appear under a basic filter, remove and recreate the filter to
+    refresh its range.
+
 ## Done (for reference)
 
 - [x] Persist signing `DEVELOPMENT_TEAM` so it stops disappearing.
