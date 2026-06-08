@@ -1,25 +1,33 @@
 import SwiftUI
+import UIKit
 
-/// 7-day NWS forecast strip shown at the top of the Planning tab. Focuses on
-/// rain (chance + condition) and the daily high, and calls out the main mowing
-/// days (Tue/Thu) with a highlight, a scissors badge, and a go/no-go summary.
+/// 7-day NWS forecast strip shown at the top of the Planning tab. Uses the
+/// device's current location, focuses on rain (chance + condition) and the daily
+/// high, and calls out the main mowing days (Tue/Thu) with a highlight, a
+/// scissors badge, and a go/no-go summary.
 struct WeatherForecastView: View {
+    @StateObject private var locator = LocationProvider()
+    @Environment(\.openURL) private var openURL
+
     @State private var days: [DayForecast] = []
     @State private var location: String = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    private var combinedError: String? { errorMessage ?? locator.errorMessage }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
 
-            if !WeatherConfig.isConfigured {
-                note("Set your mowing area to see the forecast (WeatherConfig latitude/longitude).")
-            } else if isLoading && days.isEmpty {
-                ProgressView().frame(maxWidth: .infinity).frame(height: 110)
-            } else if let errorMessage, days.isEmpty {
-                errorRow(errorMessage)
-            } else if !days.isEmpty {
+            if locator.isDenied && days.isEmpty {
+                deniedNote
+            } else if days.isEmpty, let err = combinedError {
+                errorRow(err)
+            } else if days.isEmpty {
+                ProgressView("Locating…")
+                    .frame(maxWidth: .infinity).frame(height: 110)
+            } else {
                 mowingSummary
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
@@ -31,7 +39,13 @@ struct WeatherForecastView: View {
         }
         .padding(.vertical, 10)
         .background(.thinMaterial)
-        .task { if days.isEmpty { await load() } }
+        .task {
+            locator.request()
+            if locator.coordinate != nil && days.isEmpty { await load() }
+        }
+        .onChange(of: locator.coordinate?.latitude) { _, lat in
+            if lat != nil { Task { await load() } }
+        }
     }
 
     // MARK: - Pieces
@@ -44,7 +58,10 @@ struct WeatherForecastView: View {
             if !location.isEmpty {
                 Text(location).font(.caption).foregroundStyle(.secondary)
             }
-            Button { Task { await load() } } label: {
+            Button {
+                locator.request()
+                Task { await load() }
+            } label: {
                 Image(systemName: "arrow.clockwise")
             }
             .disabled(isLoading)
@@ -112,11 +129,18 @@ struct WeatherForecastView: View {
         }
     }
 
-    private func note(_ message: String) -> some View {
-        Text(message)
+    private var deniedNote: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "location.slash").foregroundStyle(.secondary)
+            Text("Location is off — enable it to see local weather.")
+                .font(.footnote).foregroundStyle(.secondary)
+            Spacer()
+            Button("Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
             .font(.footnote)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal)
+        }
+        .padding(.horizontal)
     }
 
     private func errorRow(_ message: String) -> some View {
@@ -124,7 +148,11 @@ struct WeatherForecastView: View {
             Image(systemName: "wifi.exclamationmark").foregroundStyle(.secondary)
             Text(message).font(.footnote).foregroundStyle(.secondary)
             Spacer()
-            Button("Retry") { Task { await load() } }.font(.footnote)
+            Button("Retry") {
+                locator.request()
+                Task { await load() }
+            }
+            .font(.footnote)
         }
         .padding(.horizontal)
     }
@@ -132,13 +160,13 @@ struct WeatherForecastView: View {
     // MARK: - Load
 
     private func load() async {
-        guard WeatherConfig.isConfigured else { return }
+        guard let c = locator.coordinate else { return }
         isLoading = true
         errorMessage = nil
         do {
             let result = try await WeatherService.fetchForecast(
-                latitude: WeatherConfig.latitude,
-                longitude: WeatherConfig.longitude
+                latitude: c.latitude,
+                longitude: c.longitude
             )
             location = result.location
             days = result.days

@@ -76,15 +76,12 @@ and the `Expense` model still exist, unused, ready to be wired back in.)
 ## A3. Weather (NWS forecast on Planning tab)
 
 A 7-day NWS forecast strip is live at the top of the Planning tab
-(`Views/WeatherForecastView.swift`, `Backend/WeatherService.swift`), focused on
+(`Views/WeatherForecastView.swift`, `Backend/WeatherService.swift`), using the
+**device's current location** (`Backend/LocationProvider.swift` via CoreLocation;
+`NSLocationWhenInUseUsageDescription` is set in the build settings). Focused on
 rain chance + daily high, with Tue/Thu mowing days highlighted and a go/no-go
 summary line. Follow-ups:
 
-- [ ] **Set the service-area coordinate** in `Backend/WeatherConfig.swift`
-  (`latitude`/`longitude`). Until set, the strip shows a "set your location"
-  note. NWS is grid-based, so an approximate town-center coordinate is fine.
-- [ ] **Optional: auto-locate** via CoreLocation instead of a hardcoded
-  coordinate (needs an `NSLocationWhenInUseUsageDescription` Info.plist entry).
 - [ ] **Optional: migrate to Apple WeatherKit** if Dad's account has a paid
   Apple Developer Program membership (better data + native API; 500k calls/mo
   included). Would replace `WeatherService`'s NWS calls.
@@ -138,4 +135,4 @@ summary line. Follow-ups:
 - [x] Lawns tab shows the 5 most recent lawns by default, and the whole last-24h
   day's lawns when that day has more than 5 (app-side, by timestamp).
 - [x] 7-day NWS weather forecast at the top of the Planning tab (rain + temp,
-  Tue/Thu mowing days highlighted). Needs the service-area coordinate set.
+  Tue/Thu mowing days highlighted), using the device's current location.
