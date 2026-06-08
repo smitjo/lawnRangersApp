@@ -1,21 +1,21 @@
 import SwiftUI
 import UIKit
 
-/// 7-day NWS forecast strip shown at the top of the Planning tab. Uses the
-/// device's current location, focuses on rain (chance + condition) and the daily
-/// high, and calls out the main mowing days (Tue/Thu).
-///
-/// Reloading is driven entirely by the Planning tab's top reload button via
-/// `refreshTick` — the strip itself has no pull-to-refresh and scrolls strictly
-/// left↔right.
+/// Simple mowing-weather strip at the top of the Planning tab. Each day is split
+/// into morning (AM) and afternoon (PM), color-coded by chance of rain:
+///   • Green  — under 5%   (good to mow)
+///   • Yellow — 5%–14%     (caution)
+///   • Red    — 15%+       (rain likely)
+/// Tuesday & Thursday (the main mowing days) are highlighted. Uses the device's
+/// current location; reloading is driven by the Planning tab's top reload button
+/// via `refreshTick`, and the strip scrolls strictly left↔right.
 struct WeatherForecastView: View {
-    /// Bumped by the Planning tab's reload button to trigger a refresh.
     var refreshTick: Int = 0
 
     @StateObject private var locator = LocationProvider()
     @Environment(\.openURL) private var openURL
 
-    @State private var days: [DayForecast] = []
+    @State private var days: [MowingDay] = []
     @State private var location: String = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -42,6 +42,7 @@ struct WeatherForecastView: View {
                     .padding(.horizontal)
                 }
                 .scrollBounceBehavior(.basedOnSize, axes: .vertical)   // left/right only
+                legend
             }
         }
         .padding(.vertical, 10)
@@ -59,11 +60,11 @@ struct WeatherForecastView: View {
         }
     }
 
-    // MARK: - Pieces
+    // MARK: - Header / summary / legend
 
     private var header: some View {
         HStack {
-            Label("7-Day Forecast", systemImage: "cloud.sun.fill")
+            Label("Mowing Weather", systemImage: "cloud.sun.fill")
                 .font(.headline)
             Spacer()
             if isLoading {
@@ -75,52 +76,65 @@ struct WeatherForecastView: View {
         .padding(.horizontal)
     }
 
-    /// Go/no-go line for the next mowing day (Tue/Thu).
+    /// Go/no-go line for the next mowing day (Tue/Thu), recommending AM vs PM.
     @ViewBuilder
     private var mowingSummary: some View {
         if let next = days.first(where: { $0.isMowingDay }) {
-            let chance = next.rainChance ?? 0
+            let amOK = isOK(next.morning.rainChance)
+            let pmOK = isOK(next.afternoon.rainChance)
             HStack(spacing: 6) {
-                Image(systemName: chance >= 50 ? "exclamationmark.triangle.fill" : "scissors")
-                    .foregroundStyle(chance >= 50 ? .orange : .lawnGreen)
-                Text(mowingText(next)).font(.subheadline)
+                Image(systemName: (amOK || pmOK) ? "scissors" : "exclamationmark.triangle.fill")
+                    .foregroundStyle((amOK || pmOK) ? .lawnGreen : .orange)
+                Text(mowingText(next, amOK: amOK, pmOK: pmOK)).font(.subheadline)
             }
             .padding(.horizontal)
         }
     }
 
-    private func mowingText(_ d: DayForecast) -> String {
-        let chance = d.rainChance ?? 0
-        let temp = "\(d.high)°\(d.unit)"
-        if chance >= 50 {
-            return "\(d.name) (mowing day): \(chance)% rain, \(temp) — may need to reschedule."
-        } else if chance >= 20 {
-            return "\(d.name) (mowing day): \(chance)% rain, \(temp) — keep an eye on it."
-        } else {
-            return "\(d.name) (mowing day): \(temp), low rain chance — good to mow."
+    private func mowingText(_ d: MowingDay, amOK: Bool, pmOK: Bool) -> String {
+        let am = d.morning.rainChance.map { "\($0)%" } ?? "—"
+        let pm = d.afternoon.rainChance.map { "\($0)%" } ?? "—"
+        switch (amOK, pmOK) {
+        case (true, true):   return "\(d.name) (mowing day): clear enough — good to mow."
+        case (true, false):  return "\(d.name) (mowing day): mow in the morning (PM \(pm) rain)."
+        case (false, true):  return "\(d.name) (mowing day): better in the afternoon (AM \(am) rain)."
+        case (false, false): return "\(d.name) (mowing day): rain likely (AM \(am), PM \(pm)) — may need to reschedule."
+        }
+    }
+
+    private var legend: some View {
+        HStack(spacing: 12) {
+            legendDot(mowColor(0), "Go")
+            legendDot(mowColor(10), "Caution")
+            legendDot(mowColor(20), "Rain")
+        }
+        .font(.system(size: 10))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal)
+    }
+
+    private func legendDot(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 3).fill(color).frame(width: 10, height: 10)
+            Text(label)
         }
     }
 
     // MARK: - Day card
 
-    private func dayCard(_ d: DayForecast) -> some View {
-        let chance = d.rainChance ?? 0
-        return VStack(spacing: 5) {
+    private func dayCard(_ d: MowingDay) -> some View {
+        VStack(spacing: 5) {
             Text(d.weekdayShort)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(d.isMowingDay ? Color.lawnGreen : .primary)
             Text(d.dateLabel)
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
-            Image(systemName: d.symbol)
-                .symbolRenderingMode(.multicolor)
-                .font(.title)
-                .frame(height: 30)
-            Text("\(d.high)°\(d.unit)")
-                .font(.title3.weight(.semibold))
-            rainPill(chance)
+            segment("AM", d.morning)
+            segment("PM", d.afternoon)
         }
-        .frame(width: 68, height: 134)
+        .frame(width: 78)
+        .padding(8)
         .background(d.isMowingDay ? Color.lawnGreen.opacity(0.15) : Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
@@ -139,14 +153,40 @@ struct WeatherForecastView: View {
         }
     }
 
-    private func rainPill(_ chance: Int) -> some View {
-        HStack(spacing: 2) {
-            Image(systemName: "drop.fill").font(.system(size: 9))
-            Text("\(chance)%").font(.caption2.weight(.medium))
+    private func segment(_ label: String, _ seg: DaySegment) -> some View {
+        VStack(spacing: 1) {
+            Text(label).font(.system(size: 9, weight: .bold))
+            if let t = seg.high { Text("\(t)°").font(.system(size: 11, weight: .semibold)) }
+            Text(seg.rainChance.map { "\($0)%" } ?? "—").font(.caption2)
         }
-        .foregroundStyle(chance >= 50 ? .white : (chance >= 20 ? Color.blue : .secondary))
-        .padding(.horizontal, 6).padding(.vertical, 3)
-        .background(chance >= 50 ? Color.blue : .clear, in: Capsule())
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+        .background(mowColor(seg.rainChance))
+        .foregroundStyle(textColor(seg.rainChance))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Color rules
+
+    /// Green < 5%, Yellow 5–14%, Red 15%+, gray when there's no data.
+    private func mowColor(_ pop: Int?) -> Color {
+        guard let p = pop else { return Color(.systemGray3) }
+        switch p {
+        case ..<5:  return Color(red: 0.20, green: 0.62, blue: 0.28)
+        case ..<15: return Color(red: 0.95, green: 0.76, blue: 0.10)
+        default:    return Color(red: 0.82, green: 0.24, blue: 0.18)
+        }
+    }
+
+    private func textColor(_ pop: Int?) -> Color {
+        guard let p = pop else { return .secondary }
+        return (5..<15).contains(p) ? .black : .white   // black on yellow, white on green/red
+    }
+
+    /// "OK to mow" = green or yellow (under 15% rain).
+    private func isOK(_ pop: Int?) -> Bool {
+        guard let p = pop else { return false }
+        return p < 15
     }
 
     // MARK: - States

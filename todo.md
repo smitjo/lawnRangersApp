@@ -78,9 +78,10 @@ and the `Expense` model still exist, unused, ready to be wired back in.)
 A 7-day NWS forecast strip is live at the top of the Planning tab
 (`Views/WeatherForecastView.swift`, `Backend/WeatherService.swift`), using the
 **device's current location** (`Backend/LocationProvider.swift` via CoreLocation;
-`NSLocationWhenInUseUsageDescription` is set in the build settings). Focused on
-rain chance + daily high, with Tue/Thu mowing days highlighted and a go/no-go
-summary line. Follow-ups:
+`NSLocationWhenInUseUsageDescription` is set in the build settings). Each day is
+split into AM/PM and color-coded by rain chance (green <5%, yellow 5–14%, red
+15%+) from the NWS hourly forecast, with Tue/Thu highlighted, a go/no-go summary,
+and a legend. Reload is via the Planning tab's top button only. Follow-ups:
 
 - [ ] **If/when this app is published to the App Store, look at switching to
   Apple WeatherKit.** Publishing requires a paid Apple Developer Program
@@ -137,5 +138,6 @@ summary line. Follow-ups:
   the sheet's filter/sort.
 - [x] Lawns tab shows the 5 most recent lawns by default, and the whole last-24h
   day's lawns when that day has more than 5 (app-side, by timestamp).
-- [x] 7-day NWS weather forecast at the top of the Planning tab (rain + temp,
-  Tue/Thu mowing days highlighted), using the device's current location.
+- [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
+  color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
+  using NWS hourly + the device's current location.

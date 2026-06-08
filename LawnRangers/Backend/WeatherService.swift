@@ -1,36 +1,40 @@
 import Foundation
 
-/// One day's forecast, distilled from the NWS daytime period for the app's UI.
-struct DayForecast: Identifiable {
-    let id: Int            // NWS period number
-    let weekdayShort: String   // "Tue"
-    let dateLabel: String      // "Jun 10"
-    let name: String           // "Tuesday" / "Today"
-    let date: Date
-    let isMowingDay: Bool       // Tuesday or Thursday
-    let high: Int
-    let unit: String            // "F"
-    let rainChance: Int?        // percent, may be nil
-    let shortForecast: String   // e.g. "Chance Rain Showers"
-    let detailedForecast: String
-    let symbol: String          // SF Symbol name
+/// Rain + temp for one half of a day (morning or afternoon).
+struct DaySegment {
+    /// Max chance of rain in the window. nil = no data (e.g. morning already past).
+    let rainChance: Int?
+    /// Representative high temp for the window, if available.
+    let high: Int?
 }
 
-/// Fetches a 7-day forecast from the free National Weather Service API.
-/// NWS requires a User-Agent header and covers the US only.
+/// A day's mowing outlook, split into morning and afternoon.
+struct MowingDay: Identifiable {
+    let id: String
+    let weekdayShort: String   // "Tue"
+    let name: String           // "Tuesday"
+    let dateLabel: String      // "Jun 10"
+    let date: Date
+    let isMowingDay: Bool      // Tuesday / Thursday
+    let morning: DaySegment    // 6am–noon
+    let afternoon: DaySegment  // noon–6pm
+}
+
+/// Fetches an hourly NWS forecast and rolls it up into per-day AM/PM segments.
+/// NWS is free (no key), requires a User-Agent header, and covers the US only.
 enum WeatherService {
     private static let userAgent = "LawnRangersApp/1.0 (lawn-rangers app; contact via app)"
 
     static func fetchForecast(latitude: Double, longitude: Double) async throws
-        -> (location: String, days: [DayForecast]) {
+        -> (location: String, days: [MowingDay]) {
 
-        // 1) Resolve the point → its forecast endpoint + a friendly location name.
+        // 1) Resolve the point → its hourly forecast endpoint + a location name.
         guard let pointsURL = URL(string: "https://api.weather.gov/points/\(latitude),\(longitude)") else {
             throw URLError(.badURL)
         }
         let points: NWSPoints = try await get(pointsURL)
-        guard let forecastURLString = points.properties.forecast,
-              let forecastURL = URL(string: forecastURLString) else {
+        guard let hourlyString = points.properties.forecastHourly,
+              let hourlyURL = URL(string: hourlyString) else {
             throw NSError(domain: "Weather", code: 1, userInfo: [NSLocalizedDescriptionKey:
                 "No forecast for this location (NWS covers the US only)."])
         }
@@ -38,31 +42,50 @@ enum WeatherService {
                         points.properties.relativeLocation?.properties.state]
             .compactMap { $0 }.joined(separator: ", ")
 
-        // 2) Fetch the forecast and keep the daytime periods (the daily highs).
-        let forecast: NWSForecast = try await get(forecastURL)
+        // 2) Fetch hourly data and bucket each hour into AM (6–12) / PM (12–18).
+        let hourly: NWSHourly = try await get(hourlyURL)
         let iso = ISO8601DateFormatter()
         let cal = Calendar.current
-        let days = forecast.properties.periods
-            .filter { $0.isDaytime }
-            .prefix(7)
-            .map { p -> DayForecast in
-                let date = iso.date(from: p.startTime) ?? Date()
-                let weekday = cal.component(.weekday, from: date)
-                return DayForecast(
-                    id: p.number,
-                    weekdayShort: shortWeekday(date),
-                    dateLabel: shortDate(date),
-                    name: p.name,
-                    date: date,
-                    isMowingDay: WeatherConfig.mowingWeekdays.contains(weekday),
-                    high: p.temperature,
-                    unit: p.temperatureUnit,
-                    rainChance: p.probabilityOfPrecipitation?.value,
-                    shortForecast: p.shortForecast,
-                    detailedForecast: p.detailedForecast ?? "",
-                    symbol: symbol(for: p.shortForecast)
-                )
+
+        struct Acc {
+            var amHours = 0, amPOP = 0; var amT: [Int] = []
+            var pmHours = 0, pmPOP = 0; var pmT: [Int] = []
+        }
+        var order: [Date] = []
+        var acc: [Date: Acc] = [:]
+
+        for h in hourly.properties.periods {
+            guard let t = iso.date(from: h.startTime) else { continue }
+            let hour = cal.component(.hour, from: t)
+            let day = cal.startOfDay(for: t)
+            let pop = h.probabilityOfPrecipitation?.value ?? 0
+            if acc[day] == nil { acc[day] = Acc(); order.append(day) }
+            if hour >= 6 && hour < 12 {
+                acc[day]!.amHours += 1
+                acc[day]!.amPOP = max(acc[day]!.amPOP, pop)
+                acc[day]!.amT.append(h.temperature)
+            } else if hour >= 12 && hour < 18 {
+                acc[day]!.pmHours += 1
+                acc[day]!.pmPOP = max(acc[day]!.pmPOP, pop)
+                acc[day]!.pmT.append(h.temperature)
             }
+        }
+
+        let dayFmt = DateFormatter(); dayFmt.dateFormat = "EEEE"
+        let days = order.prefix(7).map { day -> MowingDay in
+            let a = acc[day]!
+            let weekday = cal.component(.weekday, from: day)
+            return MowingDay(
+                id: iso.string(from: day),
+                weekdayShort: shortWeekday(day),
+                name: dayFmt.string(from: day),
+                dateLabel: shortDate(day),
+                date: day,
+                isMowingDay: WeatherConfig.mowingWeekdays.contains(weekday),
+                morning: DaySegment(rainChance: a.amHours > 0 ? a.amPOP : nil, high: a.amT.max()),
+                afternoon: DaySegment(rainChance: a.pmHours > 0 ? a.pmPOP : nil, high: a.pmT.max())
+            )
+        }
         return (location, Array(days))
     }
 
@@ -81,29 +104,11 @@ enum WeatherService {
     }
 
     private static func shortWeekday(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "EEE"
-        return f.string(from: date)
+        let f = DateFormatter(); f.dateFormat = "EEE"; return f.string(from: date)
     }
 
     private static func shortDate(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d"
-        return f.string(from: date)
-    }
-
-    /// Maps an NWS shortForecast phrase to an SF Symbol.
-    static func symbol(for text: String) -> String {
-        let t = text.lowercased()
-        if t.contains("thunder") { return "cloud.bolt.rain.fill" }
-        if t.contains("snow") || t.contains("flurr") { return "cloud.snow.fill" }
-        if t.contains("sleet") || t.contains("ice") || t.contains("freezing") { return "cloud.sleet.fill" }
-        if t.contains("rain") || t.contains("shower") || t.contains("drizzle") { return "cloud.rain.fill" }
-        if t.contains("fog") || t.contains("haze") { return "cloud.fog.fill" }
-        if t.contains("partly") || t.contains("mostly sunny") { return "cloud.sun.fill" }
-        if t.contains("cloud") || t.contains("overcast") { return "cloud.fill" }
-        if t.contains("sunny") || t.contains("clear") { return "sun.max.fill" }
-        return "cloud.fill"
+        let f = DateFormatter(); f.dateFormat = "MMM d"; return f.string(from: date)
     }
 }
 
@@ -112,31 +117,22 @@ enum WeatherService {
 private struct NWSPoints: Decodable {
     let properties: Props
     struct Props: Decodable {
-        let forecast: String?
+        let forecastHourly: String?
         let relativeLocation: RelativeLocation?
     }
     struct RelativeLocation: Decodable {
         let properties: LocProps
-        struct LocProps: Decodable {
-            let city: String?
-            let state: String?
-        }
+        struct LocProps: Decodable { let city: String?; let state: String? }
     }
 }
 
-private struct NWSForecast: Decodable {
+private struct NWSHourly: Decodable {
     let properties: Props
-    struct Props: Decodable { let periods: [Period] }
-    struct Period: Decodable {
-        let number: Int
-        let name: String
+    struct Props: Decodable { let periods: [Hour] }
+    struct Hour: Decodable {
         let startTime: String
-        let isDaytime: Bool
         let temperature: Int
-        let temperatureUnit: String
         let probabilityOfPrecipitation: Precip?
-        let shortForecast: String
-        let detailedForecast: String?
         struct Precip: Decodable { let value: Int? }
     }
 }
