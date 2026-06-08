@@ -15,7 +15,10 @@ struct PlanningView: View {
 
     var body: some View {
         NavigationStack {
-            content
+            VStack(spacing: 0) {
+                WeatherForecastView()
+                content
+            }
                 .navigationTitle("Planning")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
