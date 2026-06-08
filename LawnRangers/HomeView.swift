@@ -78,20 +78,21 @@ struct HomeView: View {
         lawns.sorted { ($0.ts ?? 0) > ($1.ts ?? 0) }
     }
 
-    /// Whether nothing was mowed in the last 24 hours, so the tab falls back to
-    /// the 5 most recent lawns instead of "the last day".
-    private var isShowingRecentFallback: Bool {
+    /// True when the last 24 hours has more than 5 lawns, so the whole day is
+    /// shown instead of just the last 5.
+    private var isShowingFullDay: Bool {
         let cutoff = Date().timeIntervalSince1970 * 1000 - 86_400_000  // 24h ago, epoch ms
-        return !sortedLawns.contains { ($0.ts ?? 0) >= cutoff }
+        return sortedLawns.filter { ($0.ts ?? 0) >= cutoff }.count > 5
     }
 
-    /// What the Lawns tab shows: lawns mowed in the last 24 hours; if there are
-    /// none, the 5 most recent instead. Driven entirely by the in-app timestamp,
-    /// so it stays independent of any filter/sort applied on the sheet.
+    /// What the Lawns tab shows: the 5 most recent lawns (whenever they were) —
+    /// unless the last 24 hours holds more than 5, in which case that whole day's
+    /// lawns are shown. Driven entirely by the in-app timestamp, so it stays
+    /// independent of any filter/sort applied on the sheet.
     private var displayedLawns: [SheetLawn] {
         let cutoff = Date().timeIntervalSince1970 * 1000 - 86_400_000  // 24h ago, epoch ms
-        let lastDay = sortedLawns.filter { ($0.ts ?? 0) >= cutoff }
-        return lastDay.isEmpty ? Array(sortedLawns.prefix(5)) : lastDay
+        let dayLawns = sortedLawns.filter { ($0.ts ?? 0) >= cutoff }
+        return dayLawns.count > 5 ? dayLawns : Array(sortedLawns.prefix(5))
     }
 
     private var lawnList: some View {
@@ -117,9 +118,9 @@ struct HomeView: View {
                     }
                 }
             } footer: {
-                Text(isShowingRecentFallback
-                     ? "No lawns in the last 24 hours — showing the 5 most recent."
-                     : "Showing lawns from the last 24 hours.")
+                Text(isShowingFullDay
+                     ? "Showing the last 24 hours (\(displayedLawns.count) lawns)."
+                     : "Showing the \(displayedLawns.count) most recent lawns.")
             }
         }
     }

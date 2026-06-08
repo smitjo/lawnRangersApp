@@ -105,5 +105,5 @@ and the `Expense` model still exist, unused, ready to be wired back in.)
 - [x] Remove expenses from the Lawns tab (Lawns is now lawns-only).
 - [x] Lawns tab sorts newest→oldest by in-app timestamp (`ts`), independent of
   the sheet's filter/sort.
-- [x] Lawns tab shows only the last 24 hours, falling back to the 5 most recent
-  when there's nothing in that window (app-side, by timestamp).
+- [x] Lawns tab shows the 5 most recent lawns by default, and the whole last-24h
+  day's lawns when that day has more than 5 (app-side, by timestamp).
