@@ -84,7 +84,7 @@ struct WeatherForecastView: View {
             let pmOK = isOK(next.afternoon.rainChance)
             HStack(spacing: 6) {
                 Image(systemName: (amOK || pmOK) ? "scissors" : "exclamationmark.triangle.fill")
-                    .foregroundStyle((amOK || pmOK) ? .lawnGreen : .orange)
+                    .foregroundStyle((amOK || pmOK) ? Color.lawnGreen : Color.orange)
                 Text(mowingText(next, amOK: amOK, pmOK: pmOK)).font(.subheadline)
             }
             .padding(.horizontal)
