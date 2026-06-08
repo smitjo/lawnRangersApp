@@ -83,6 +83,13 @@ split into AM/PM and color-coded by rain chance (green <5%, yellow 5–14%, red
 15%+) from the NWS hourly forecast, with Tue/Thu highlighted, a go/no-go summary,
 and a legend. Reload is via the Planning tab's top button only. Follow-ups:
 
+- [ ] **Decide: extend the forecast to 10 days (needs a provider switch).** NWS
+  only forecasts ~7 days (hourly ~6.5), so a true 10-day view requires changing
+  the data source. Best free option: **Open-Meteo** (no API key, up to 16 days,
+  global, has hourly `precipitation_probability` + `temperature_2m`, so the same
+  AM/PM color split carries over). Caveat: Open-Meteo's free tier is
+  non-commercial / fair-use — fine for a small internal tool, worth noting for a
+  business app. Decision pending: keep NWS (~7 days) vs switch to Open-Meteo (10).
 - [ ] **If/when this app is published to the App Store, look at switching to
   Apple WeatherKit.** Publishing requires a paid Apple Developer Program
   membership, which comes with an Apple Developer Team ID — and that same
