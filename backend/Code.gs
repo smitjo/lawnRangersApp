@@ -120,12 +120,14 @@ function readPlanning() {
       var tz = ss.getSpreadsheetTimeZone();
       rows.forEach(function (r) {
         if (!r[0]) return;
+        var dsm = asNumber(r[3]);
+        var due = asNumber(r[4]);
         out.planning.push({
           customer: str(r[0]),
-          interval: (typeof r[1] === 'number') ? r[1] : null,
+          interval: asNumber(r[1]),
           lastMowed: (r[2] instanceof Date) ? Utilities.formatDate(r[2], tz, 'MMM d') : str(r[2]),
-          daysSinceMowed: (typeof r[3] === 'number') ? Math.round(r[3]) : null,
-          dueIn: (typeof r[4] === 'number') ? Math.round(r[4]) : null
+          daysSinceMowed: (dsm === null) ? null : Math.round(dsm),
+          dueIn: (due === null) ? null : Math.round(due)
         });
       });
     }
@@ -276,8 +278,10 @@ function setupSpreadsheet() {
     eF.push(["=IF($C" + r + "=\"\",\"\",$B" + r + "-$D" + r + ")"]);
   }
   plan.getRange(2, 3, LAST - 1, 1).setFormulas(cF).setNumberFormat('mmm d');
-  plan.getRange(2, 4, LAST - 1, 1).setFormulas(dF);
-  plan.getRange(2, 5, LAST - 1, 1).setFormulas(eF);
+  // Force plain-number format so these day-count formulas aren't auto-formatted
+  // as dates (which would make getValues() return Dates, breaking the app read).
+  plan.getRange(2, 4, LAST - 1, 1).setFormulas(dF).setNumberFormat('0');
+  plan.getRange(2, 5, LAST - 1, 1).setFormulas(eF).setNumberFormat('0');
 
   // Green → yellow → red gradient on Days Since Mowed, like the old sheet.
   var grad = SpreadsheetApp.newConditionalFormatRule()
@@ -300,3 +304,17 @@ function json(obj) {
 }
 
 function str(v) { return (v === null || v === undefined) ? '' : String(v); }
+
+/// Coerce a sheet cell to a number. Handles plain numbers, numeric strings, and
+/// the case where a day-count formula (e.g. TODAY()-lastMowed) gets auto-
+/// formatted as a date — in which case getValues() returns a Date that we map
+/// back to its day-count (serial offset from the 1899-12-30 sheet epoch).
+function asNumber(v) {
+  if (typeof v === 'number') return v;
+  if (v instanceof Date) {
+    var epoch = new Date(1899, 11, 30);
+    return Math.round((v.getTime() - epoch.getTime()) / 86400000);
+  }
+  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
+  return null;
+}
