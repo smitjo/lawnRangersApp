@@ -61,6 +61,18 @@ and the `Expense` model still exist, unused, ready to be wired back in.)
 
 ---
 
+## A2. Lawns tab — "Show all history" (future)
+
+- [ ] **Add a way to see *all* lawns in the app**, not just the limited recent
+  view. The Lawns tab now shows the last 5 (or the full last-24h day when it has
+  more than 5), so older history lives only in the sheet. Options to consider:
+  - A toggle / segmented control at the top: **Recent** vs **All**.
+  - A "Show all" button at the bottom of the list that expands to `sortedLawns`.
+  - A search field to find a specific customer/date across all history.
+  Whatever the entry point, "All" should display `sortedLawns` (already
+  newest→oldest by `ts`), and ideally adopt the same approach for the future
+  Expenses tab.
+
 ## B. Remaining open items from the project handoff
 
 - [ ] **Backend redeploy (#3) — REQUIRED for the newest→oldest sort.** The Lawns
