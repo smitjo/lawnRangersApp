@@ -86,10 +86,15 @@ struct PlanningView: View {
     }
 
     private func daysBadge(_ c: PlanningCustomer) -> some View {
-        let text = c.daysSinceMowed.map { "\(Int($0))" } ?? "—"
-        return VStack(spacing: 0) {
-            Text(text).font(.title3.bold())
-            Text("days").font(.system(size: 9))
+        VStack(spacing: 0) {
+            if let days = c.daysSinceMowed {
+                // Days since the customer's MOST RECENT mow (sheet uses MAXIFS).
+                Text("\(Int(days))").font(.title3.bold())
+                Text("days").font(.system(size: 9))
+            } else {
+                // Never mowed yet — flips to the day count after the first mow.
+                Text("N/A").font(.headline.bold())
+            }
         }
         .frame(width: 54, height: 54)
         .background(overdueColor(days: c.daysSinceMowed, interval: c.interval))
