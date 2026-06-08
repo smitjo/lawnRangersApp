@@ -7,6 +7,8 @@ struct PlanningView: View {
     @State private var customers: [PlanningCustomer] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    /// Bumped to tell the weather strip to reload (from the top reload button).
+    @State private var weatherRefreshTick = 0
 
     /// Most overdue first (never-mowed customers sink to the bottom).
     private var sorted: [PlanningCustomer] {
@@ -16,20 +18,22 @@ struct PlanningView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                WeatherForecastView()
+                WeatherForecastView(refreshTick: weatherRefreshTick)
                 content
             }
                 .navigationTitle("Planning")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button { Task { await load() } } label: {
+                        Button {
+                            weatherRefreshTick += 1   // reload the forecast too
+                            Task { await load() }
+                        } label: {
                             Image(systemName: "arrow.clockwise")
                         }
                         .disabled(isLoading)
                     }
                 }
                 .task { if customers.isEmpty { await load() } }
-                .refreshable { await load() }
         }
     }
 

@@ -3,9 +3,15 @@ import UIKit
 
 /// 7-day NWS forecast strip shown at the top of the Planning tab. Uses the
 /// device's current location, focuses on rain (chance + condition) and the daily
-/// high, and calls out the main mowing days (Tue/Thu) with a highlight, a
-/// scissors badge, and a go/no-go summary.
+/// high, and calls out the main mowing days (Tue/Thu).
+///
+/// Reloading is driven entirely by the Planning tab's top reload button via
+/// `refreshTick` — the strip itself has no pull-to-refresh and scrolls strictly
+/// left↔right.
 struct WeatherForecastView: View {
+    /// Bumped by the Planning tab's reload button to trigger a refresh.
+    var refreshTick: Int = 0
+
     @StateObject private var locator = LocationProvider()
     @Environment(\.openURL) private var openURL
 
@@ -26,7 +32,7 @@ struct WeatherForecastView: View {
                 errorRow(err)
             } else if days.isEmpty {
                 ProgressView("Locating…")
-                    .frame(maxWidth: .infinity).frame(height: 110)
+                    .frame(maxWidth: .infinity).frame(height: 120)
             } else {
                 mowingSummary
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -35,7 +41,7 @@ struct WeatherForecastView: View {
                     }
                     .padding(.horizontal)
                 }
-                .scrollBounceBehavior(.basedOnSize, axes: .vertical)   // left/right only — no vertical bounce
+                .scrollBounceBehavior(.basedOnSize, axes: .vertical)   // left/right only
             }
         }
         .padding(.vertical, 10)
@@ -47,6 +53,10 @@ struct WeatherForecastView: View {
         .onChange(of: locator.coordinate?.latitude) { _, lat in
             if lat != nil { Task { await load() } }
         }
+        .onChange(of: refreshTick) { _, _ in
+            locator.request()
+            Task { await load() }
+        }
     }
 
     // MARK: - Pieces
@@ -56,16 +66,11 @@ struct WeatherForecastView: View {
             Label("7-Day Forecast", systemImage: "cloud.sun.fill")
                 .font(.headline)
             Spacer()
-            if !location.isEmpty {
+            if isLoading {
+                ProgressView().controlSize(.small)
+            } else if !location.isEmpty {
                 Text(location).font(.caption).foregroundStyle(.secondary)
             }
-            Button {
-                locator.request()
-                Task { await load() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .disabled(isLoading)
         }
         .padding(.horizontal)
     }
@@ -96,39 +101,55 @@ struct WeatherForecastView: View {
         }
     }
 
+    // MARK: - Day card
+
     private func dayCard(_ d: DayForecast) -> some View {
-        VStack(spacing: 6) {
-            Text(d.weekdayShort).font(.subheadline.bold())
+        let chance = d.rainChance ?? 0
+        return VStack(spacing: 5) {
+            Text(d.weekdayShort)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(d.isMowingDay ? Color.lawnGreen : .primary)
+            Text(d.dateLabel)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
             Image(systemName: d.symbol)
                 .symbolRenderingMode(.multicolor)
-                .font(.title2)
-                .frame(height: 26)
-            Text("\(d.high)°").font(.headline)
-            HStack(spacing: 2) {
-                Image(systemName: "drop.fill").font(.system(size: 9))
-                Text("\(d.rainChance ?? 0)%").font(.caption2)
-            }
-            .foregroundStyle((d.rainChance ?? 0) >= 50 ? Color.blue : .secondary)
+                .font(.title)
+                .frame(height: 30)
+            Text("\(d.high)°\(d.unit)")
+                .font(.title3.weight(.semibold))
+            rainPill(chance)
         }
-        .frame(width: 62)
-        .padding(.vertical, 10)
-        .background(d.isMowingDay ? Color.lawnGreen.opacity(0.18) : Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(width: 68, height: 134)
+        .background(d.isMowingDay ? Color.lawnGreen.opacity(0.15) : Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .stroke(d.isMowingDay ? Color.lawnGreen : .clear, lineWidth: 1.5)
         )
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .top) {
             if d.isMowingDay {
-                Image(systemName: "scissors")
-                    .font(.system(size: 9))
+                Text("MOW")
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.white)
-                    .padding(4)
-                    .background(Color.lawnGreen, in: Circle())
-                    .offset(x: 5, y: -5)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color.lawnGreen, in: Capsule())
+                    .offset(y: -7)
             }
         }
     }
+
+    private func rainPill(_ chance: Int) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: "drop.fill").font(.system(size: 9))
+            Text("\(chance)%").font(.caption2.weight(.medium))
+        }
+        .foregroundStyle(chance >= 50 ? .white : (chance >= 20 ? Color.blue : .secondary))
+        .padding(.horizontal, 6).padding(.vertical, 3)
+        .background(chance >= 50 ? Color.blue : .clear, in: Capsule())
+    }
+
+    // MARK: - States
 
     private var deniedNote: some View {
         HStack(spacing: 6) {
@@ -149,11 +170,6 @@ struct WeatherForecastView: View {
             Image(systemName: "wifi.exclamationmark").foregroundStyle(.secondary)
             Text(message).font(.footnote).foregroundStyle(.secondary)
             Spacer()
-            Button("Retry") {
-                locator.request()
-                Task { await load() }
-            }
-            .font(.footnote)
         }
         .padding(.horizontal)
     }

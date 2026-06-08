@@ -4,6 +4,7 @@ import Foundation
 struct DayForecast: Identifiable {
     let id: Int            // NWS period number
     let weekdayShort: String   // "Tue"
+    let dateLabel: String      // "Jun 10"
     let name: String           // "Tuesday" / "Today"
     let date: Date
     let isMowingDay: Bool       // Tuesday or Thursday
@@ -50,6 +51,7 @@ enum WeatherService {
                 return DayForecast(
                     id: p.number,
                     weekdayShort: shortWeekday(date),
+                    dateLabel: shortDate(date),
                     name: p.name,
                     date: date,
                     isMowingDay: WeatherConfig.mowingWeekdays.contains(weekday),
@@ -81,6 +83,12 @@ enum WeatherService {
     private static func shortWeekday(_ date: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "EEE"
+        return f.string(from: date)
+    }
+
+    private static func shortDate(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
         return f.string(from: date)
     }
 
