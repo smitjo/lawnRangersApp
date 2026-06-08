@@ -35,6 +35,7 @@ struct WeatherForecastView: View {
                     }
                     .padding(.horizontal)
                 }
+                .scrollBounceBehavior(.basedOnSize, axes: .vertical)   // left/right only — no vertical bounce
             }
         }
         .padding(.vertical, 10)

@@ -82,9 +82,12 @@ A 7-day NWS forecast strip is live at the top of the Planning tab
 rain chance + daily high, with Tue/Thu mowing days highlighted and a go/no-go
 summary line. Follow-ups:
 
-- [ ] **Optional: migrate to Apple WeatherKit** if Dad's account has a paid
-  Apple Developer Program membership (better data + native API; 500k calls/mo
-  included). Would replace `WeatherService`'s NWS calls.
+- [ ] **If/when this app is published to the App Store, look at switching to
+  Apple WeatherKit.** Publishing requires a paid Apple Developer Program
+  membership, which comes with an Apple Developer Team ID — and that same
+  membership includes WeatherKit (500k calls/mo, better data, native Swift API).
+  At that point WeatherKit becomes effectively free to use, so revisit replacing
+  the NWS calls in `WeatherService` with it (also removes the US-only limit).
 - [ ] **Optional: per-mowing-day detail** — tap a Tue/Thu card to see the NWS
   `detailedForecast` (e.g. "Rain likely, mainly after 2pm") for rain timing.
 
