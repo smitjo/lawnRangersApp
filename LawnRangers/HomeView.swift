@@ -57,7 +57,7 @@ struct HomeView: View {
                 .sheet(item: $editingLawn, onDismiss: {
                     // Give the edit a moment to record, then refresh.
                     Task {
-                        try? await Task.sleep(for: .seconds(1.2))
+                        try? await Task.sleep(for: .seconds(0.4))
                         await load()
                     }
                 }) { LogLawnView(editingLawn: $0, knownCustomers: customerNames) }
@@ -71,7 +71,7 @@ struct HomeView: View {
                     // A form was just dismissed — give the sheet a moment to record, then refresh.
                     if !isShowing {
                         Task {
-                            try? await Task.sleep(for: .seconds(1.2))
+                            try? await Task.sleep(for: .seconds(0.4))
                             await load()
                         }
                     }
@@ -79,7 +79,7 @@ struct HomeView: View {
                 .onChange(of: showingLogExpense) { _, isShowing in
                     if !isShowing {
                         Task {
-                            try? await Task.sleep(for: .seconds(1.2))
+                            try? await Task.sleep(for: .seconds(0.4))
                             await load()
                         }
                     }

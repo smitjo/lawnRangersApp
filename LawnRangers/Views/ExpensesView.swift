@@ -59,7 +59,7 @@ struct ExpensesView: View {
                 .onChange(of: showingLogExpense) { _, isShowing in
                     if !isShowing {
                         Task {
-                            try? await Task.sleep(for: .seconds(1.2))
+                            try? await Task.sleep(for: .seconds(0.4))
                             await load()
                         }
                     }
@@ -67,7 +67,7 @@ struct ExpensesView: View {
                 .onChange(of: showingLogLawn) { _, isShowing in
                     if !isShowing {
                         Task {
-                            try? await Task.sleep(for: .seconds(1.2))
+                            try? await Task.sleep(for: .seconds(0.4))
                             await load()
                         }
                     }

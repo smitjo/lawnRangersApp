@@ -6,14 +6,23 @@ import SwiftData
 struct LogExpenseView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var expenses: String = ""
+    // Q1 — Expense: a quick "100% Gas" option, or "Other" for a typed name.
+    @State private var expenseChoice: String = ""   // "" = none, "100% Gas", or "Other"
+    @State private var expenseCustom: String = ""
     @State private var amount: String = ""
     @State private var comment: String = ""
     @State private var isSubmitting = false
     @State private var errorMessage: String?
 
+    /// The expense name to record: "100% Gas", or the typed name when "Other".
+    private var resolvedExpense: String {
+        expenseChoice == "Other"
+            ? expenseCustom.trimmingCharacters(in: .whitespacesAndNewlines)
+            : expenseChoice
+    }
+
     private var canSave: Bool {
-        !expenses.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !resolvedExpense.isEmpty
             && !amount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -31,15 +40,25 @@ struct LogExpenseView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     fieldCard(icon: "cart.fill", title: "Expense", required: true) {
-                        inputField {
-                            TextField("What did you buy?", text: $expenses)
+                        HStack(spacing: 10) {
+                            choicePill("100% Gas")
+                            choicePill("Other")
+                        }
+                        if expenseChoice == "Other" {
+                            inputField {
+                                TextField("Expense name", text: $expenseCustom)
+                                    .textInputAutocapitalization(.words)
+                            }
                         }
                     }
 
                     fieldCard(icon: "dollarsign.circle.fill", title: "Amount", required: true) {
                         inputField {
-                            TextField("0.00", text: $amount)
-                                .keyboardType(.decimalPad)
+                            HStack(spacing: 4) {
+                                Text("$").foregroundStyle(.secondary)
+                                TextField("0.00", text: $amount)
+                                    .keyboardType(.decimalPad)
+                            }
                         }
                     }
 
@@ -144,11 +163,27 @@ struct LogExpenseView: View {
         )
     }
 
+    private func choicePill(_ option: String) -> some View {
+        let isOn = expenseChoice == option
+        return Button {
+            expenseChoice = option
+        } label: {
+            Text(option)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isOn ? Color.white : Color.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(Capsule().fill(isOn ? Color.lawnGreen : Color.primary.opacity(0.06)))
+                .overlay(Capsule().stroke(Color.white.opacity(isOn ? 0 : 0.08), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Save
 
     private func save() {
         let expense = Expense(
-            expenses: expenses.trimmingCharacters(in: .whitespacesAndNewlines),
+            expenses: resolvedExpense,
             amount: amount.trimmingCharacters(in: .whitespacesAndNewlines),
             comment: comment.trimmingCharacters(in: .whitespacesAndNewlines)
         )
