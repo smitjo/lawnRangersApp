@@ -28,6 +28,12 @@ struct PlanningView: View {
             }
                 .navigationTitle("Planning")
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { planAllOverdue() } label: {
+                            Label("Plan overdue", systemImage: "calendar.badge.plus")
+                        }
+                        .disabled(overdueToPlan.isEmpty)
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             weatherRefreshTick += 1   // reload the forecast too
@@ -102,6 +108,25 @@ struct PlanningView: View {
 
     private func addToPlan(_ c: PlanningCustomer) {
         context.insert(PlannedJob(customer: c.customer))
+    }
+
+    private func isOverdue(_ c: PlanningCustomer) -> Bool {
+        if let due = c.dueIn { return due <= 0 }
+        return false
+    }
+
+    /// Overdue customers not already in the plan.
+    private var overdueToPlan: [PlanningCustomer] {
+        sorted.filter { c in
+            isOverdue(c) && !planned.contains(where: { $0.customer == c.customer })
+        }
+    }
+
+    /// One-tap: add every overdue, not-yet-planned customer to the plan.
+    private func planAllOverdue() {
+        for c in overdueToPlan {
+            context.insert(PlannedJob(customer: c.customer))
+        }
     }
 
     private func deletePlanned(_ offsets: IndexSet) {
