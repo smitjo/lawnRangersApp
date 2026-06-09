@@ -90,11 +90,24 @@ struct RouteMapView: View {
 
     private func geocodeStops() async {
         isLoading = true
+
+        // Primary address source: the Customers tab (customer → address). A
+        // per-plan address (if set) is used as a fallback/override.
+        var addressByCustomer: [String: String] = [:]
+        if let customers = try? await CustomerService.fetch() {
+            for c in customers {
+                if let a = c.address, !a.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    addressByCustomer[c.customer] = a
+                }
+            }
+        }
+
         var result: [RouteStop] = []
         var miss = 0
         let geocoder = CLGeocoder()
         for item in items {
-            let addr = (item.address ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let addr = (addressByCustomer[item.customer] ?? item.address ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             guard !addr.isEmpty else { continue }
             if let placemarks = try? await geocoder.geocodeAddressString(addr),
                let coord = placemarks.first?.location?.coordinate {

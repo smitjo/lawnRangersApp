@@ -132,8 +132,8 @@ Builds three tabs:
 - **Lawn Log** — columns A–N. Rows 1–2 hold **Total Earned** and **Unpaid
   amount** summaries, row 3 is the header, data starts at row 4.
 - **Overhead Expense** — Timestamp, Expenses, Amount, Comment.
-- **Rates** — `Customer | Standard Rate` lookup, seeded with known customers
-  (fill in the rates yourself).
+- **Customers** — `Customer | Standard Rate | Address` lookup, seeded with known
+  customers (fill in the rates + addresses yourself).
 
 ### `doPost(e)` — receives app submissions
 Routes by `type`, appends the answer columns, and for lawn rows writes the
@@ -151,7 +151,7 @@ Redeploy (Manage deployments → new version) after updating `Code.gs` so the sa
 
 ### Calculated columns (the math)
 Let **Rate** be the number in "How much?", or the customer's Standard Rate from
-the **Rates** tab when the value is exactly `"Standard"`.
+the **Customers** tab when the value is exactly `"Standard"`.
 
 | Column | Formula | Meaning |
 |---|---|---|
@@ -173,7 +173,7 @@ limited to rows where `Customer paid? = "Unpaid"`.
 
 1. Create a Google Sheet → **Extensions → Apps Script** → paste `backend/Code.gs`.
 2. Run **`setupSpreadsheet`** (authorize when prompted).
-3. Fill in the **Rates** tab.
+3. Fill in the **Customers** tab (Standard Rate + Address).
 4. **Deploy → New deployment → Web app** — *Execute as: Me*, *Who has access: Anyone*.
 5. Copy the `/exec` URL → in the app, **gear → Settings → paste → Save**.
 
@@ -199,7 +199,7 @@ The app stays in local-only mode until a valid URL is saved.
 
 - **App icon** — currently a placeholder green "LR". Replace `AppIcon` with the
   lasso artwork (drag the 1024×1024 PNG into the AppIcon well in Xcode).
-- **Standard-rate accuracy** — verify the Rates tab values against the original
+- **Standard-rate accuracy** — verify the Customers tab values against the original
   sheet after the first live entries.
 - **"Other" mower payouts** — not tracked in a dedicated column (by design);
   can be added if needed.
@@ -223,4 +223,4 @@ Run it on a phone:
   `https://smitjo.github.io/lawnRangersApp/demo/lawn-rangers-demo.html`
 
 The demo seeds "Standard" rates from the original sheet for illustration; the
-real app resolves them from the **Rates** tab.
+real app resolves them from the **Customers** tab.

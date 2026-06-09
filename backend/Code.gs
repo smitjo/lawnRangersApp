@@ -13,7 +13,7 @@
  *   2. Extensions → Apps Script. Delete the sample code, paste THIS file in.
  *   3. In the toolbar function dropdown choose `setupSpreadsheet`, click Run.
  *      Authorize when prompted. This builds the three tabs.
- *   4. Open the "Rates" tab and fill in each customer's Standard rate
+ *   4. Open the "Customers" tab and fill in each customer's Standard rate + address
  *      (this is what "Standard" in the form looks up).
  *   5. Deploy → New deployment → type "Web app"
  *        • Execute as:     Me
@@ -23,7 +23,7 @@
  *
  * Calculation rules (derived from the existing sheet):
  *   • Rate (H):           the number in "How much?", or the customer's Standard
- *                         rate from the Rates tab when it says "Standard".
+ *                         rate from the Customers tab when it says "Standard".
  *   • Each teammate (I–L): Rate × 0.8 ÷ (number of people in "Who?"), but only
  *                         for the people listed in that row.
  *   • Overhead (M):        Rate × 0.1
@@ -35,7 +35,7 @@
 // ── Tab names ───────────────────────────────────────────────────────────────
 var LAWN_TAB = 'Lawn Log';
 var EXPENSE_TAB = 'Overhead Expense';
-var RATES_TAB = 'Rates';
+var CUSTOMERS_TAB = 'Customers';   // customer → Standard Rate + Address (was "Rates")
 var PLANNING_TAB = 'Planning';          // built by setupSpreadsheet; read by the app's Planning tab
 var ERROR_TAB = 'Errors';               // created on demand when the app's debug error logging is on
 var PLAN_TAB = 'Plan';                  // the shared planning backlog; created on demand
@@ -161,8 +161,9 @@ function doPost(e) {
 // app can mirror the sheet (reflecting adds and deletions).
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'planning';
-  var out = (action === 'entries') ? readEntries()
-          : (action === 'plan')    ? readPlan()
+  var out = (action === 'entries')   ? readEntries()
+          : (action === 'plan')      ? readPlan()
+          : (action === 'customers') ? readCustomers()
           : readPlanning();
 
   var payload = JSON.stringify(out);
@@ -254,7 +255,7 @@ function readEntries() {
 function writeCalculatedColumns(sheet, r) {
   // H — Rate: a number from "How much?", else look up the customer's Standard rate.
   sheet.getRange(r, 8).setFormula(
-    '=IF($D' + r + '="Standard", IFERROR(VLOOKUP($B' + r + ", " + RATES_TAB + '!$A:$B, 2, FALSE), 0), ' +
+    '=IF($D' + r + '="Standard", IFERROR(VLOOKUP($B' + r + ", " + CUSTOMERS_TAB + '!$A:$B, 2, FALSE), 0), ' +
     'IFERROR(VALUE(REGEXREPLACE(TO_TEXT($D' + r + '), "[^0-9.]", "")), 0))'
   );
 
@@ -307,20 +308,20 @@ function setupSpreadsheet() {
   ex.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#b7a7e0');
   ex.setFrozenRows(1);
 
-  // --- Rates tab (customer → Standard rate lookup) ---
-  var rates = ss.getSheetByName(RATES_TAB) || ss.insertSheet(RATES_TAB);
-  rates.getRange(1, 1, 1, 2).setValues([['Customer', 'Standard Rate']]);
-  rates.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#b7a7e0');
-  rates.setFrozenRows(1);
-  // Seed the customer names we know about; fill in the rates yourself.
+  // --- Customers tab (customer → Standard Rate + Address) ---
+  var customers = ss.getSheetByName(CUSTOMERS_TAB) || ss.insertSheet(CUSTOMERS_TAB);
+  customers.getRange(1, 1, 1, 3).setValues([['Customer', 'Standard Rate', 'Address']]);
+  customers.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#b7a7e0');
+  customers.setFrozenRows(1);
+  // Seed the customer names we know about; fill in the rates + addresses yourself.
   var seed = [
     'Adam', 'Anderson', 'Beverly', 'Brian', 'Corbit', 'Eldridge', 'Harrington',
     'Helen Lee', 'Holland', 'Hunter', 'Johnson', 'King', 'Larry', 'Matthews',
     'Nancy Patton', 'Retzer', 'Schreck', 'Yatish'
   ];
-  if (rates.getLastRow() < 2) {
-    var rows = seed.map(function (name) { return [name, '']; });
-    rates.getRange(2, 1, rows.length, 2).setValues(rows);
+  if (customers.getLastRow() < 2) {
+    var rows = seed.map(function (name) { return [name, '', '']; });
+    customers.getRange(2, 1, rows.length, 3).setValues(rows);
   }
 
   // --- Planning tab (Days Since Mowed, computed from the Lawn Log) ---
@@ -361,7 +362,7 @@ function setupSpreadsheet() {
   plan.setConditionalFormatRules([grad]);
 
   // Done. (Logged instead of a popup so the run never waits on a dialog.)
-  Logger.log('Setup complete. Next: fill in the Rates tab, then Deploy → New deployment → Web app, and paste the /exec URL into the app Settings.');
+  Logger.log('Setup complete. Next: fill in the Customers tab (rates + addresses), then Deploy → New deployment → Web app, and paste the /exec URL into the app Settings.');
 }
 
 // ── helper ──────────────────────────────────────────────────────────────────
@@ -395,6 +396,28 @@ function planFindRow_(sh, id) {
     if (String(ids[i][0]) === String(id)) return i + 2;
   }
   return -1;
+}
+
+// Customer directory (Customers tab): customer → Standard Rate + Address.
+function readCustomers() {
+  var out = { customers: [] };
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CUSTOMERS_TAB);
+    if (sh && sh.getLastRow() >= 2) {
+      var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
+      rows.forEach(function (r) {
+        if (!r[0]) return;
+        out.customers.push({
+          customer: str(r[0]),
+          rate: asNumber(r[1]),
+          address: str(r[2])
+        });
+      });
+    }
+  } catch (err) {
+    out.error = String(err);
+  }
+  return out;
 }
 
 function readPlan() {

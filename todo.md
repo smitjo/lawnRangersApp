@@ -417,6 +417,12 @@ endpoint.
   hands the ordered stops to Apple Maps for turn-by-turn. **Requires an Apps
   Script redeploy** (Address column) + filling in addresses. Fast-follow ideas:
   optimize stop order (nearest-neighbor), start from current location.
+- [x] Renamed the "Rates" tab to "Customers" everywhere in code + docs (Code.gs
+  CUSTOMERS_TAB, README, DOCUMENTATION) and added an Address column to it. New
+  ?action=customers read + CustomerService; the route now pulls each stop's
+  address from the Customers tab (per-plan address is a fallback). Requires a
+  redeploy + renaming the sheet tab + adding the Address column.
+  
 - [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
   color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
   using NWS hourly + the device's current location.

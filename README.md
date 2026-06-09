@@ -114,9 +114,9 @@ point the app at a different backend.
      Caleb, Oliver, Overhead, Depreciation, with **Total Earned** / **Unpaid
      amount** summary rows on top (like the original sheet).
    - **Overhead Expense** — Timestamp, Expenses, Amount, Comment.
-   - **Rates** — Customer → Standard Rate lookup (seeded with customer names).
-4. Open the **Rates** tab and fill in each customer's standard rate. This is what
-   the form's "Standard" value looks up.
+   - **Customers** — Customer → Standard Rate + Address (seeded with customer names).
+4. Open the **Customers** tab and fill in each customer's standard rate (and
+   address, used for the route map). The "Standard" value looks up the rate here.
 5. **Deploy → New deployment → Web app**, *Execute as: Me*, *Who has access: Anyone*.
 6. Copy the Web app `/exec` URL.
 7. To make it the default for everyone, paste it into
