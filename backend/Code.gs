@@ -172,7 +172,9 @@ function readEntries() {
       var n = lawn.getLastRow() - FIRST_DATA_ROW + 1;
       var rows = lawn.getRange(FIRST_DATA_ROW, 1, n, 7).getValues();
       rows.forEach(function (r) {
-        if (!r[1] && !r[3]) return;
+        // Only real entries: column A is an actual date. This skips the header
+        // row and any summary rows regardless of where they sit in the sheet.
+        if (!(r[0] instanceof Date)) return;
         out.lawns.push({
           date: (r[0] instanceof Date) ? Utilities.formatDate(r[0], tz, 'MMM d, yyyy') : str(r[0]),
           ts: (r[0] instanceof Date) ? r[0].getTime() : 0,   // raw epoch ms so the app can sort newest→oldest itself
@@ -191,7 +193,8 @@ function readEntries() {
       var m = ex.getLastRow() - 1;
       var er = ex.getRange(2, 1, m, 4).getValues();
       er.forEach(function (r) {
-        if (!r[1]) return;
+        // Only real entries (column A is an actual date) — skip header/summary rows.
+        if (!(r[0] instanceof Date)) return;
         out.expenses.push({
           date: (r[0] instanceof Date) ? Utilities.formatDate(r[0], tz, 'MMM d, yyyy') : str(r[0]),
           ts: (r[0] instanceof Date) ? r[0].getTime() : 0,   // raw epoch ms so the app can sort newest→oldest itself
