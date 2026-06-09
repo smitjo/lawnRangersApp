@@ -10,6 +10,10 @@ struct LogLawnView: View {
     var editingLawn: SheetLawn? = nil
     @State private var didPrefill = false
 
+    /// Customer names from the live sheet data (passed in by the Lawns tab), so
+    /// the "Where?" dropdown reflects customers already in use across the team.
+    var knownCustomers: [String] = []
+
     /// Previously entered locations, used to grow the "Where?" dropdown.
     @Query(sort: \LawnLog.timestamp, order: .reverse) private var pastLogs: [LawnLog]
 
@@ -34,13 +38,14 @@ struct LogLawnView: View {
     @State private var note: String = ""
 
     @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     private let teamMembers = ["Grantham", "Gresham", "Caleb", "Oliver"]
 
     /// Seed customers ∪ previously entered locations, sorted & de-duplicated.
     private var allCustomers: [String] {
         let used = pastLogs.map(\.whereLocation).filter { !$0.isEmpty }
-        return Array(Set(CustomerDirectory.seed + used)).sorted()
+        return Array(Set(CustomerDirectory.seed + used + knownCustomers)).sorted()
     }
 
     private var resolvedWhere: String {
@@ -72,6 +77,13 @@ struct LogLawnView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let errorMessage {
+                    Section {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .font(.subheadline)
+                    }
+                }
                 // Q1 — Where?
                 Section {
                     Picker("Where?", selection: $whereSelection) {
@@ -143,8 +155,12 @@ struct LogLawnView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(editingLawn == nil ? "Submit" : "Save") { save() }
-                        .disabled(!canSave || isSubmitting)
+                    if isSubmitting {
+                        ProgressView()
+                    } else {
+                        Button(editingLawn == nil ? "Submit" : "Save") { save() }
+                            .disabled(!canSave)
+                    }
                 }
             }
             .onAppear { prefillIfNeeded() }
@@ -231,9 +247,10 @@ struct LogLawnView: View {
     private func save() {
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Edit mode: update the existing sheet row, matched by its timestamp.
+        let payload: [String: Any]
         if let e = editingLawn, let ts = e.ts {
-            let payload: [String: Any] = [
+            // Edit mode: update the existing sheet row, matched by its timestamp.
+            payload = [
                 "type": "lawnUpdate",
                 "ts": ts,
                 "where": resolvedWhere,
@@ -243,23 +260,35 @@ struct LogLawnView: View {
                 "teammemberPaid": teammemberPaid,
                 "note": trimmedNote,
             ]
-            Task { await SheetSubmitter.submit(payload) }
-            dismiss()
-            return
+        } else {
+            // Create mode: append a new entry.
+            let log = LawnLog(
+                whereLocation: resolvedWhere,
+                who: resolvedTeam,
+                howMuch: resolvedHowMuch,
+                customerPaid: customerPaid,
+                teammemberPaid: teammemberPaid,
+                note: trimmedNote
+            )
+            payload = log.sheetPayload()
         }
 
-        // Create mode: append a new entry.
-        let log = LawnLog(
-            whereLocation: resolvedWhere,
-            who: resolvedTeam,
-            howMuch: resolvedHowMuch,
-            customerPaid: customerPaid,
-            teammemberPaid: teammemberPaid,
-            note: trimmedNote
-        )
-        let payload = log.sheetPayload()
-        Task { await SheetSubmitter.submit(payload) }
-        dismiss()
+        // Only dismiss once the save is confirmed; on failure keep the form open
+        // with an error so a mow is never silently lost.
+        Task {
+            isSubmitting = true
+            errorMessage = nil
+            let result = await SheetSubmitter.submit(payload)
+            isSubmitting = false
+            switch result {
+            case .success:
+                dismiss()
+            case .notConfigured:
+                errorMessage = "No backend connected — add the Web App URL in Settings."
+            case .failure:
+                errorMessage = "Couldn't save — check your connection and try again."
+            }
+        }
     }
 }
 

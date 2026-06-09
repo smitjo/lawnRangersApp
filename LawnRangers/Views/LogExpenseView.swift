@@ -8,6 +8,8 @@ struct LogExpenseView: View {
     @State private var expenses: String = ""
     @State private var amount: String = ""
     @State private var comment: String = ""
+    @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     private var canSave: Bool {
         !expenses.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -17,6 +19,13 @@ struct LogExpenseView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let errorMessage {
+                    Section {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .font(.subheadline)
+                    }
+                }
                 Section {
                     Text("This is to record any overhead purchases.")
                         .font(.subheadline)
@@ -50,8 +59,12 @@ struct LogExpenseView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Submit") { save() }
-                        .disabled(!canSave)
+                    if isSubmitting {
+                        ProgressView()
+                    } else {
+                        Button("Submit") { save() }
+                            .disabled(!canSave)
+                    }
                 }
             }
         }
@@ -71,8 +84,20 @@ struct LogExpenseView: View {
             comment: comment.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         let payload = expense.sheetPayload()
-        Task { await SheetSubmitter.submit(payload) }
-        dismiss()
+        Task {
+            isSubmitting = true
+            errorMessage = nil
+            let result = await SheetSubmitter.submit(payload)
+            isSubmitting = false
+            switch result {
+            case .success:
+                dismiss()
+            case .notConfigured:
+                errorMessage = "No backend connected — add the Web App URL in Settings."
+            case .failure:
+                errorMessage = "Couldn't save — check your connection and try again."
+            }
+        }
     }
 }
 

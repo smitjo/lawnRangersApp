@@ -39,6 +39,28 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Section {
+                    Button {
+                        Task { await testConnection() }
+                    } label: {
+                        HStack {
+                            Text("Test connection")
+                            Spacer()
+                            if isTesting { ProgressView() }
+                        }
+                    }
+                    .disabled(isTesting)
+                    if let testResult {
+                        Text(testResult)
+                            .font(.footnote)
+                            .foregroundStyle(testResult.hasPrefix("Connected") ? .green : .red)
+                    }
+                } header: {
+                    Text("Connection test")
+                } footer: {
+                    Text("Checks whether the URL above (or the built-in one if blank) actually responds. Does not save it.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -54,6 +76,36 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    /// Tests the typed URL (or the built-in default if blank) without saving it.
+    private func testConnection() async {
+        isTesting = true
+        testResult = nil
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let effective = trimmed.isEmpty ? BackendConfig.defaultWebAppURLString : trimmed
+        guard var comps = URLComponents(string: effective) else {
+            testResult = "That doesn't look like a valid URL."
+            isTesting = false
+            return
+        }
+        comps.queryItems = [URLQueryItem(name: "action", value: "entries")]
+        guard let url = comps.url else {
+            testResult = "That doesn't look like a valid URL."
+            isTesting = false
+            return
+        }
+        do {
+            let (_, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                testResult = "Server responded with an error (\(http.statusCode))."
+            } else {
+                testResult = "Connected — the backend responded."
+            }
+        } catch {
+            testResult = "Failed: \(error.localizedDescription)"
+        }
+        isTesting = false
     }
 }
 

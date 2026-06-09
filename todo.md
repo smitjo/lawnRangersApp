@@ -272,6 +272,52 @@ Implementation notes (all free, CoreLocation):
   property edges (hence centering the pin); a manual start/stop fallback for when
   geofencing misses.
 
+## A8. Team audit (Jun 2026) — findings & follow-ups
+
+Three-persona audit (UX designer, iOS engineer, lawn-business owner) + debate.
+**Verdict: NOT a substantially different product** — the architecture (SwiftUI
+field-logger mirroring a Google Sheet, client-side `ts` sorting, recompute-on-edit
+money math) is sound. The asks are to make it *trustworthy* and *complete it*, not
+to pivot.
+
+**Fixed on branch `audit/quick-fixes`** (review before merging):
+- [x] Submit/edit no longer dismisses on failure — `save()` awaits the result,
+  shows an error, keeps the form open, and shows a spinner (LogLawnView +
+  LogExpenseView). No more silently-lost mows.
+- [x] Home list keyed by model identity (`ForEach(visibleLawns)`) so a tap can't
+  misroute to the wrong job's Paid toggle during a refresh.
+- [x] "Where?" dropdown now grows — fed live customer names from the sheet
+  (`LogLawnView(knownCustomers:)`).
+- [x] Team-member filter matches names exactly (no substring over-match).
+- [x] Settings "Test connection" button wired up (was dead state).
+
+**Deferred — bigger, ranked (need decisions / backend redeploy):**
+- [ ] **Make the app money-aware (highest-value feature).** `readEntries` returns
+  only 7 of 14 columns — it discards Rate / per-teammate splits / Overhead /
+  Unpaid that the backend already computes. Widen to 14 cols, add fields to
+  `SheetLawn`, and show a **per-customer outstanding balance** + **per-teammate
+  owed total**. Needs a backend redeploy. Prerequisite for any payment feature.
+- [ ] **Full reliable-save: local persistence + offline retry queue.** The branch
+  fix surfaces failures; the complete fix is to insert to SwiftData before
+  posting and resubmit queued entries on reconnect (with a "pending" badge).
+  Decision needed: keep SwiftData (currently wired but unused) or remove it — and
+  fix README/DOCUMENTATION which falsely claim "saved locally first."
+- [ ] **Authenticate the `/exec` endpoint** (shared-secret token in
+  PropertiesService, checked in doGet/doPost), stop returning the PII note field
+  unauthenticated, and rotate the baked-in URL. Must-do before any wider/App
+  Store release; lower urgency for the private 4-person use today.
+- [ ] **One-tap "Request payment"** Venmo/Zelle deep link
+  (`venmo://paycharge?...` pre-filled with customer + Unpaid amount) — *after*
+  the balance above exists.
+- [ ] **Optimistic insert + drop the fixed 1.2s reload sleep**; **auto-refresh on
+  foreground** so teammates see each other's mows.
+- [ ] **Low-priority backend hardening:** UUID id per entry (vs same-second ts
+  match), exact-match the teammate-split REGEXMATCH, optional LockService guard.
+- [ ] **Field-readability pass:** bigger touch targets + larger money/Paid type,
+  larger required `*`, reconsider forced dark mode / high-contrast outdoor mode.
+- [ ] Customer-profile screen & crew-payout view — useful but nice-to-have; the
+  shared sheet covers this today (debate flagged as scope creep for 4 people).
+
 ## B. Remaining open items from the project handoff
 
 - [ ] **Backend redeploy (#3) — REQUIRED for the newest→oldest sort.** The Lawns

@@ -24,7 +24,10 @@ struct LawnFilter: Equatable {
         if let c = customer, (l.whereLocation ?? "") != c { return false }
         if customerPaid != .any, (l.customerPaid ?? "") != customerPaid.rawValue { return false }
         if teammemberPaid != .any, (l.teammemberPaid ?? "") != teammemberPaid.rawValue { return false }
-        if let m = teamMember, !(l.who ?? "").localizedCaseInsensitiveContains(m) { return false }
+        if let m = teamMember {
+            let people = (l.who ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            if !people.contains(where: { $0.caseInsensitiveCompare(m) == .orderedSame }) { return false }
+        }
 
         // Date range — compared at day granularity (time of day ignored).
         if fromDate != nil || toDate != nil {

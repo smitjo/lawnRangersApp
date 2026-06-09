@@ -44,14 +44,14 @@ struct HomeView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $showingLogLawn) { LogLawnView() }
+                .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames) }
                 .sheet(item: $editingLawn, onDismiss: {
                     // Give the edit a moment to record, then refresh.
                     Task {
                         try? await Task.sleep(for: .seconds(1.2))
                         await load()
                     }
-                }) { LogLawnView(editingLawn: $0) }
+                }) { LogLawnView(editingLawn: $0, knownCustomers: customerNames) }
                 .sheet(isPresented: $showingFilter) {
                     FilterLawnsView(filter: $filter, customers: customerNames)
                 }
@@ -148,7 +148,7 @@ struct HomeView: View {
                     Text("No lawns match your filters.")
                         .foregroundStyle(.secondary)
                 }
-                ForEach(Array(visibleLawns.enumerated()), id: \.offset) { _, log in
+                ForEach(visibleLawns) { log in
                     Button { editingLawn = log } label: {
                         HStack(alignment: .top, spacing: 8) {
                             VStack(alignment: .leading, spacing: 4) {
