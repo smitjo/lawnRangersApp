@@ -124,12 +124,9 @@ struct WeatherForecastView: View {
 
     private func dayCard(_ d: MowingDay) -> some View {
         VStack(spacing: 5) {
-            Text(d.weekdayShort)
+            Text("\(d.weekdayShort), \(Calendar.current.component(.day, from: d.date))")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(d.isMowingDay ? Color.lawnGreen : .primary)
-            Text(d.dateLabel)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
             segment("AM", d.morning)
             segment("PM", d.afternoon)
         }
