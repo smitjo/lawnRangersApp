@@ -226,6 +226,52 @@ Rough thresholds (a lawn business logs ~600 mows/year, so these are years out):
 - [ ] **Add backend pagination** if we ever approach ~5k+ entries (load-as-you-
   scroll from the sheet instead of fetching everything each refresh).
 
+## A6. Log a Lawn — mower hours on the first lawn of the day (future)
+
+**Goal:** when logging the **first lawn of a given day**, show an extra add-on
+section to record each mower's hour-meter reading (for usage/maintenance
+tracking). Hidden on all later lawns that day.
+
+Implementation notes (all free):
+- **First-of-day detection (app-side):** before showing the section, check
+  whether any existing lawn has today's date (compare `ts` to the start of
+  today). If none → it's the first mow of the day → show the mower-hours section.
+- **Mowers list:** add a small config (e.g. `MowerDirectory.seed = ["Mower 1",
+  "Mower 2", …]`) or a "Mowers" tab so the set is editable.
+- **Input:** one decimal field (or stepper) per mower for the current hour-meter
+  reading; optional.
+- **Storage:** new **"Mower Hours"** tab (Timestamp, Date, Mower, Hours) written
+  via a new Apps Script `doPost` action (`type: 'mowerHours'`), or extra columns.
+  Daily hours *used* can be derived by diffing consecutive readings per mower.
+- **Considerations:** backend redeploy + new tab; keep it optional so it never
+  blocks logging; decide whether readings are cumulative meter values (diff for
+  usage) or hours-used entered directly.
+
+## A7. Location-based time tracking per lawn (future)
+
+**Goal:** use location data to automatically track how long is spent on each
+lawn (arrive → leave), tied to the customer.
+
+Implementation notes (all free, CoreLocation):
+- **Per-property center:** store a lat/lon for each customer — the **centroid of
+  the property boundaries** so the geofence sits in the middle of the lot.
+  Capture it by standing on-site and tapping "Set location" (current location),
+  or by dropping/dragging a pin on a **MapKit** map (free) and using that point.
+  Persist it on the customer (new columns in the Planning/Rates tab, or a
+  "Locations" tab) via an Apps Script `doPost`.
+- **Timing:** geofence each property with a small radius (e.g. 40–60 m) around
+  the centroid using `CLCircularRegion` region monitoring — arrival starts a
+  timer, departure stops it and records the duration. Foreground-only timing
+  (app open) is simplest; **background** geofencing needs
+  `NSLocationAlwaysAndWhenInUseUsageDescription` + the Always permission.
+- **iOS limit:** max 20 monitored regions at once — for more customers, monitor
+  only the nearest N to the current location and rotate as you move.
+- **Storage:** write the elapsed minutes onto the lawn entry (new column) or a
+  "Job Times" tab; could feed back into pricing/efficiency analysis later.
+- **Considerations:** Always-location permission + battery; accuracy near
+  property edges (hence centering the pin); a manual start/stop fallback for when
+  geofencing misses.
+
 ## B. Remaining open items from the project handoff
 
 - [ ] **Backend redeploy (#3) — REQUIRED for the newest→oldest sort.** The Lawns
