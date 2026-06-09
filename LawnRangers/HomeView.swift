@@ -134,14 +134,12 @@ struct HomeView: View {
             } footer: {
                 HStack {
                     Text(footerText)
-                    if sortedLawns.count > displayedLawns.count {
-                        Spacer()
-                        Button(showAll ? "Show less" : "See all") {
-                            withAnimation { showAll.toggle() }
-                        }
-                        .font(.footnote.weight(.semibold))
-                        .textCase(nil)
+                    Spacer()
+                    Button(showAll ? "Show less" : "See all") {
+                        withAnimation { showAll.toggle() }
                     }
+                    .font(.footnote.weight(.semibold))
+                    .textCase(nil)
                 }
             }
         }
