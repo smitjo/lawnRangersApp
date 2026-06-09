@@ -318,6 +318,26 @@ to pivot.
 - [ ] Customer-profile screen & crew-payout view — useful but nice-to-have; the
   shared sheet covers this today (debate flagged as scope creep for 4 people).
 
+## A9. Decide with Dad: one-command backend deploys (clasp) — needs a Node install
+
+**Reminder / decision pending.** We scaffolded `clasp` so `./backend/deploy.sh`
+can push `Code.gs` + redeploy the same `/exec` URL in one command (files:
+`backend/deploy.sh`, `backend/appsscript.json`, `.clasp.json.example`, and
+`backend/DEPLOY.md`). **Not set up yet** because it requires installing **Node.js**
+(not native to macOS; install via the nodejs.org `.pkg`, no Homebrew).
+
+→ **Talk it over with Dad before installing anything.** If you both want it:
+1. Install Node (nodejs.org `.pkg`), then `npm i -g @google/clasp`.
+2. Enable the Apps Script API + `clasp login`.
+3. Give Claude the **Script ID** (Apps Script → Project Settings) and the
+   **deployment ID** (`clasp deployments`); Claude writes `.clasp.json` +
+   `backend/.deployment-id` and runs the first `./backend/deploy.sh`.
+
+Until then, deploy backend changes **manually** (paste `Code.gs` into Apps Script
+→ Deploy → Manage deployments → Edit → New version). Two backend changes are
+currently waiting on a redeploy: the **Plan** endpoints and the **error-logging**
+endpoint.
+
 ## B. Remaining open items from the project handoff
 
 - [ ] **Backend redeploy (#3) — REQUIRED for the newest→oldest sort.** The Lawns
