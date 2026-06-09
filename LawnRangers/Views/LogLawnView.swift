@@ -29,8 +29,10 @@ struct LogLawnView: View {
     @State private var whoOtherEnabled = false
     @State private var whoOther: String = ""
 
-    // Q3 — How much?  Defaults to "Standard"; tap in to type an actual rate.
-    @State private var howMuch: String = "Standard"
+    // Q3 — How much?  Left empty so the field shows a grayed "Standard"
+    // placeholder; an untouched field submits as "Standard" (see resolvedHowMuch),
+    // and tapping in gives a blank field to type an actual rate.
+    @State private var howMuch: String = ""
 
     // Q4 / Q5 — Paid?
     @State private var customerPaid: String = ""        // "Paid" / "Unpaid"
@@ -130,7 +132,7 @@ struct LogLawnView: View {
                         inputField {
                             TextField("Standard", text: $howMuch)
                         }
-                        Text("Leave as “Standard” to use the customer’s standard rate, or type the actual amount.")
+                        Text("Defaults to “Standard” (the customer’s standard rate) — tap to type an actual amount.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -339,7 +341,9 @@ struct LogLawnView: View {
         }
 
         let amount = e.howMuch ?? ""
-        howMuch = amount.isEmpty ? "Standard" : amount
+        // Show the grayed "Standard" placeholder (empty field) for Standard/blank
+        // rates; otherwise pre-fill the actual amount.
+        howMuch = (amount.isEmpty || amount == "Standard") ? "" : amount
         customerPaid = e.customerPaid ?? ""
         teammemberPaid = e.teammemberPaid ?? ""
         note = e.note ?? ""
