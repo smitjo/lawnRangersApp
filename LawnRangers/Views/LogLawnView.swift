@@ -43,6 +43,8 @@ struct LogLawnView: View {
 
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+    @FocusState private var whereCustomFocused: Bool
+    @FocusState private var whoOtherFocused: Bool
 
     private let teamMembers = ["Grantham", "Gresham", "Caleb", "Oliver"]
 
@@ -99,10 +101,17 @@ struct LogLawnView: View {
                         } label: {
                             menuLabel(whereMenuText, isPlaceholder: whereSelection.isEmpty)
                         }
+                        .onChange(of: whereSelection) { _, newValue in
+                            // Auto-focus the new-customer field (pop keyboard) when chosen.
+                            if newValue == Self.otherTag {
+                                DispatchQueue.main.async { whereCustomFocused = true }
+                            }
+                        }
                         if whereSelection == Self.otherTag {
                             inputField {
                                 TextField("New customer name", text: $whereCustom)
                                     .textInputAutocapitalization(.words)
+                                    .focused($whereCustomFocused)
                             }
                         }
                     }
@@ -117,12 +126,19 @@ struct LogLawnView: View {
                             }
                             chip("Other", selected: whoOtherEnabled) {
                                 whoOtherEnabled.toggle()
+                                // Auto-focus the field (pop keyboard) when turning Other on.
+                                if whoOtherEnabled {
+                                    DispatchQueue.main.async { whoOtherFocused = true }
+                                } else {
+                                    whoOtherFocused = false
+                                }
                             }
                         }
                         if whoOtherEnabled {
                             inputField {
                                 TextField("Other", text: $whoOther)
                                     .textInputAutocapitalization(.words)
+                                    .focused($whoOtherFocused)
                             }
                         }
                     }
