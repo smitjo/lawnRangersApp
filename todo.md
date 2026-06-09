@@ -99,6 +99,117 @@ and a legend. Reload is via the Planning tab's top button only. Follow-ups:
 - [ ] **Optional: per-mowing-day detail** — tap a Tue/Thu card to see the NWS
   `detailedForecast` (e.g. "Rain likely, mainly after 2pm") for rain timing.
 
+## A4. Planning — per-customer "Schedule" button (future)
+
+**Goal:** a small schedule button on the right of each customer row in the
+Planning tab. Tapping it lets you pick/clear the next mow date for that customer.
+Scheduling is handled in the app (the UI + logic); the **Planning sheet is the
+store** so it persists and stays shared. All achievable for free.
+
+### Data model
+- **Sheet:** add a **"Next Scheduled"** column to the Planning tab (column F).
+  In `setupSpreadsheet`, add the header + a date number format.
+- **App:** add `scheduledDate: String?` to `PlanningCustomer`, and surface it on
+  the row (e.g. "Scheduled: Jun 12", colored if it's today/overdue).
+
+### Backend (Apps Script) — free, reuses the existing Web App
+Add a `doPost` branch to write a customer's scheduled date, and include it in
+`readPlanning`. Requires a redeploy (Manage deployments → Edit → New version) and
+either re-running `setupSpreadsheet` or manually adding the column.
+
+```js
+// doPost(e): new branch
+} else if (data.type === 'planSchedule') {
+  var plan = ss.getSheetByName(PLANNING_TAB);
+  if (!plan) throw new Error('No Planning tab');
+  var n = Math.max(plan.getLastRow() - 1, 0);
+  var names = plan.getRange(2, 1, n, 1).getValues();
+  for (var i = 0; i < names.length; i++) {
+    if (String(names[i][0]).trim().toLowerCase() ===
+        String(data.customer).trim().toLowerCase()) {
+      plan.getRange(i + 2, 6)   // column F = Next Scheduled
+          .setValue(data.scheduledDate ? new Date(data.scheduledDate) : '');
+      break;
+    }
+  }
+  return json({ result: 'success' });
+}
+
+// readPlanning(): read 6 columns instead of 5, then add to each row:
+//   scheduledDate: (r[5] instanceof Date) ? Utilities.formatDate(r[5], tz, 'MMM d') : str(r[5])
+```
+
+### App — button + scheduling sheet (SwiftUI)
+```swift
+// PlanningView.row(_:) — trailing button before the Spacer:
+Button { scheduling = c } label: {
+    Image(systemName: "calendar.badge.plus")
+}
+.buttonStyle(.borderless)
+.tint(.lawnGreen)
+
+// PlanningView state + sheet:
+@State private var scheduling: PlanningCustomer?
+// .sheet(item: $scheduling) { ScheduleSheet(customer: $0) { date in
+//     await PlanningSubmitter.schedule(customer: $0.customer, date: date)
+//     weatherRefreshTick += 0; await load()   // refresh after write
+// } }
+```
+```swift
+// New PlanningSubmitter.swift — mirrors SheetSubmitter, POSTs JSON to the Web App
+enum PlanningSubmitter {
+    static func schedule(customer: String, date: Date?) async {
+        guard let url = BackendConfig.webAppURL else { return }
+        let payload: [String: Any] = [
+            "type": "planSchedule",
+            "customer": customer,
+            "scheduledDate": date.map { ISO8601DateFormatter().string(from: $0) } ?? ""
+        ]
+        var req = URLRequest(url: url); req.httpMethod = "POST"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        _ = try? await URLSession.shared.data(for: req)
+    }
+}
+// ScheduleSheet = a DatePicker(.graphical) + Save / Clear buttons.
+```
+
+### Free reminder options (optional, pick one)
+- **Local notifications (`UserNotifications`)** — simplest, free, offline, no
+  server, no Info.plist string (just request authorization once). Fire a
+  reminder at the scheduled date:
+  ```swift
+  import UserNotifications
+  func remind(_ customer: String, at date: Date) {
+      let c = UNMutableNotificationContent()
+      c.title = "Mow \(customer)"; c.body = "Scheduled mow today."; c.sound = .default
+      let comps = Calendar.current.dateComponents([.year,.month,.day,.hour,.minute], from: date)
+      let trig = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+      UNUserNotificationCenter.current().add(
+          .init(identifier: "mow-\(customer)", content: c, trigger: trig))
+  }
+  // once: UNUserNotificationCenter.current().requestAuthorization(options: [.alert,.sound]) { _,_ in }
+  ```
+- **EventKit (device Calendar)** — adds a real calendar event; also free but
+  heavier (needs `INFOPLIST_KEY_NSCalendarsUsageDescription` + EventKit). Use
+  only if a calendar entry is wanted over a simple reminder.
+
+### Considerations
+- **Match key:** find the customer by trimmed/lowercased name — same key the
+  Planning formulas use. Names must match the Lawn Log "Where?" spelling.
+- **Redeploy required** for the `doPost`/`readPlanning` changes; add the column.
+- **Display/sort:** could sort the Planning list by scheduled date, or badge
+  rows that are scheduled for today.
+- **Permissions** (if adding reminders/calendar): add the usage strings as
+  `INFOPLIST_KEY_*` build settings, like the location one.
+- After a write, refresh via the top reload button (eventual consistency).
+
+### Recommended MVP (all free)
+1. Sheet: add "Next Scheduled" column + `doPost`/`readPlanning` support.
+2. App: `calendar.badge.plus` button per row → graphical `DatePicker` sheet →
+   `PlanningSubmitter.schedule(...)` → refresh.
+3. Add a local notification reminder for the chosen date.
+Defer EventKit/calendar unless a true calendar event is wanted.
+
 ## B. Remaining open items from the project handoff
 
 - [ ] **Backend redeploy (#3) — REQUIRED for the newest→oldest sort.** The Lawns
