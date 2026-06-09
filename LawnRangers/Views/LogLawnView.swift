@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// "Log a Lawn" — exact copy of the "Lawn Mowing Wizard - 2025 Daily Log" form.
+/// "Log a Lawn" — mirrors the "Lawn Mowing Wizard - 2025 Daily Log" form.
+/// The look is a modern card layout; the questions, fields, answers, and the data
+/// it submits are unchanged from the original Google Form.
 struct LogLawnView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -74,80 +76,86 @@ struct LogLawnView: View {
         return team
     }
 
+    // MARK: - Body
+
     var body: some View {
         NavigationStack {
-            Form {
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                            .font(.subheadline)
+            ScrollView {
+                VStack(spacing: 16) {
+                    if let errorMessage {
+                        errorBanner(errorMessage)
                     }
-                }
-                // Q1 — Where?
-                Section {
-                    Picker("Where?", selection: $whereSelection) {
-                        Text("Choose").tag("")
-                        ForEach(allCustomers, id: \.self) { Text($0).tag($0) }
-                        Text("New customer…").tag(Self.otherTag)
-                    }
-                    if whereSelection == Self.otherTag {
-                        TextField("New customer name", text: $whereCustom)
-                            .textInputAutocapitalization(.words)
-                    }
-                } header: {
-                    requiredHeader("Where?")
-                }
 
-                // Q2 — Who?
-                Section {
-                    ForEach(teamMembers, id: \.self) { member in
-                        checkRow(title: member, isOn: selectedTeam.contains(member)) {
-                            toggle(member, in: &selectedTeam)
+                    // Q1 — Where?
+                    fieldCard(icon: "mappin.and.ellipse", title: "Where?", required: true) {
+                        Menu {
+                            Picker("Where?", selection: $whereSelection) {
+                                Text("Choose").tag("")
+                                ForEach(allCustomers, id: \.self) { Text($0).tag($0) }
+                                Text("New customer…").tag(Self.otherTag)
+                            }
+                        } label: {
+                            menuLabel(whereMenuText, isPlaceholder: whereSelection.isEmpty)
+                        }
+                        if whereSelection == Self.otherTag {
+                            inputField {
+                                TextField("New customer name", text: $whereCustom)
+                                    .textInputAutocapitalization(.words)
+                            }
                         }
                     }
-                    checkRow(title: "Other", isOn: whoOtherEnabled) {
-                        whoOtherEnabled.toggle()
+
+                    // Q2 — Who?
+                    fieldCard(icon: "person.2.fill", title: "Who?", required: true) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 8)], spacing: 8) {
+                            ForEach(teamMembers, id: \.self) { member in
+                                chip(member, selected: selectedTeam.contains(member)) {
+                                    toggle(member, in: &selectedTeam)
+                                }
+                            }
+                            chip("Other", selected: whoOtherEnabled) {
+                                whoOtherEnabled.toggle()
+                            }
+                        }
+                        if whoOtherEnabled {
+                            inputField {
+                                TextField("Other", text: $whoOther)
+                                    .textInputAutocapitalization(.words)
+                            }
+                        }
                     }
-                    if whoOtherEnabled {
-                        TextField("Other", text: $whoOther)
-                            .textInputAutocapitalization(.words)
+
+                    // Q3 — How much?
+                    fieldCard(icon: "dollarsign.circle.fill", title: "How much?", required: true) {
+                        inputField {
+                            TextField("Standard", text: $howMuch)
+                        }
+                        Text("Leave as “Standard” to use the customer’s standard rate, or type the actual amount.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                } header: {
-                    requiredHeader("Who?")
-                }
 
-                // Q3 — How much?  Pre-filled with "Standard"; tap to enter a rate.
-                Section {
-                    TextField("Standard", text: $howMuch)
-                } header: {
-                    requiredHeader("How much? Enter 'Standard' or the actual rate.")
-                } footer: {
-                    Text("Leave as \"Standard\" to use the customer's standard rate, or type the actual amount.")
-                }
+                    // Q4 — Customer paid?
+                    fieldCard(icon: "creditcard.fill", title: "Customer paid?", required: true) {
+                        pillPicker($customerPaid)
+                    }
 
-                // Q4 — Customer paid?
-                Section {
-                    radioPicker(selection: $customerPaid, options: ["Paid", "Unpaid"])
-                } header: {
-                    requiredHeader("Customer paid?")
-                }
+                    // Q5 — Teammember paid?
+                    fieldCard(icon: "banknote.fill", title: "Teammember paid?", required: true) {
+                        pillPicker($teammemberPaid)
+                    }
 
-                // Q5 — Teammember paid?
-                Section {
-                    radioPicker(selection: $teammemberPaid, options: ["Paid", "Unpaid"])
-                } header: {
-                    requiredHeader("Teammember paid?")
+                    // Q6 — Note (optional)
+                    fieldCard(icon: "note.text", title: "Note", required: false) {
+                        inputField {
+                            TextField("Address & phone for new customers", text: $note, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
+                    }
                 }
-
-                // Q6 — Note (optional)
-                Section {
-                    TextField("Your answer", text: $note, axis: .vertical)
-                        .lineLimit(2...5)
-                } header: {
-                    Text("Note. Include Address & Phone for new customers")
-                }
+                .padding(16)
             }
+            .background(backdrop)
             .navigationTitle(editingLawn == nil ? "Log a Lawn" : "Edit Lawn")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -159,12 +167,146 @@ struct LogLawnView: View {
                         ProgressView()
                     } else {
                         Button(editingLawn == nil ? "Submit" : "Save") { save() }
+                            .fontWeight(.semibold)
                             .disabled(!canSave)
                     }
                 }
             }
             .onAppear { prefillIfNeeded() }
         }
+    }
+
+    // MARK: - Styled building blocks
+
+    private var backdrop: some View {
+        LinearGradient(
+            colors: [Color(.systemBackground), Color.lawnGreen.opacity(0.10)],
+            startPoint: .top, endPoint: .bottom
+        )
+        .ignoresSafeArea()
+    }
+
+    /// A titled card hosting one question's control(s).
+    private func fieldCard<Content: View>(
+        icon: String,
+        title: String,
+        required: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.lawnGreen)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                if required {
+                    Text("Required")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func menuLabel(_ text: String, isPlaceholder: Bool) -> some View {
+        HStack {
+            Text(text)
+                .foregroundStyle(isPlaceholder ? .secondary : .primary)
+            Spacer()
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .background(fieldFill)
+    }
+
+    @ViewBuilder
+    private func inputField<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(fieldFill)
+    }
+
+    private var fieldFill: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.primary.opacity(0.06))
+    }
+
+    private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(selected ? Color.white : Color.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Capsule().fill(selected ? Color.lawnGreen : Color.primary.opacity(0.06)))
+                .overlay(Capsule().stroke(Color.white.opacity(selected ? 0 : 0.08), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func pillPicker(_ selection: Binding<String>) -> some View {
+        HStack(spacing: 10) {
+            paidPill("Paid", selection: selection, tint: Color.lawnGreen)
+            paidPill("Unpaid", selection: selection, tint: Color.orange)
+        }
+    }
+
+    private func paidPill(_ option: String, selection: Binding<String>, tint: Color) -> some View {
+        let isOn = selection.wrappedValue == option
+        return Button {
+            selection.wrappedValue = option
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.footnote)
+                Text(option)
+                    .font(.subheadline.weight(.medium))
+            }
+            .foregroundStyle(isOn ? Color.white : Color.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(Capsule().fill(isOn ? tint : Color.primary.opacity(0.06)))
+            .overlay(Capsule().stroke(Color.white.opacity(isOn ? 0 : 0.08), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text(message).font(.subheadline)
+            Spacer()
+        }
+        .foregroundStyle(.white)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.red.opacity(0.85))
+        )
+    }
+
+    private var whereMenuText: String {
+        if whereSelection.isEmpty { return "Choose a customer" }
+        if whereSelection == Self.otherTag { return "New customer…" }
+        return whereSelection
     }
 
     // MARK: - Edit prefill
@@ -201,41 +343,6 @@ struct LogLawnView: View {
         customerPaid = e.customerPaid ?? ""
         teammemberPaid = e.teammemberPaid ?? ""
         note = e.note ?? ""
-    }
-
-    // MARK: - Reusable rows
-
-    private func requiredHeader(_ title: String) -> some View {
-        HStack(spacing: 4) {
-            Text(title)
-            Text("*").foregroundStyle(.red)
-        }
-    }
-
-    private func checkRow(title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: isOn ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                Text(title).foregroundStyle(.primary)
-                Spacer()
-            }
-        }
-    }
-
-    private func radioPicker(selection: Binding<String>, options: [String]) -> some View {
-        ForEach(options, id: \.self) { option in
-            Button {
-                selection.wrappedValue = option
-            } label: {
-                HStack {
-                    Image(systemName: selection.wrappedValue == option ? "largecircle.fill.circle" : "circle")
-                        .foregroundStyle(selection.wrappedValue == option ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                    Text(option).foregroundStyle(.primary)
-                    Spacer()
-                }
-            }
-        }
     }
 
     private func toggle(_ value: String, in set: inout Set<String>) {
