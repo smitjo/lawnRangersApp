@@ -322,6 +322,8 @@ Implementation notes (all free, CoreLocation):
 - [x] Tap a lawn to edit all its fields; the change is written back to the sheet
   row (matched by timestamp) via a new `lawnUpdate` Apps Script endpoint.
   **Requires an Apps Script redeploy to take effect.**
+- [x] Lawns tab filter (top-right): filters across all lawns by customer,
+  customer-paid, teammember-paid, and team member. (Could add a date range later.)
 - [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
   color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
   using NWS hourly + the device's current location.

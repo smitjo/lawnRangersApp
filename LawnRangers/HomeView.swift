@@ -11,6 +11,8 @@ struct HomeView: View {
     @State private var showAll = false
     /// The lawn being edited (set by tapping a row).
     @State private var editingLawn: SheetLawn?
+    @State private var filter = LawnFilter()
+    @State private var showingFilter = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +31,14 @@ struct HomeView: View {
                         .disabled(isLoading)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
+                        Button { showingFilter = true } label: {
+                            Image(systemName: filter.isActive
+                                  ? "line.3.horizontal.decrease.circle.fill"
+                                  : "line.3.horizontal.decrease.circle")
+                                .accessibilityLabel("Filter")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button { showingLogLawn = true } label: {
                             Image(systemName: "plus").accessibilityLabel("Log a lawn")
                         }
@@ -42,6 +52,9 @@ struct HomeView: View {
                         await load()
                     }
                 }) { LogLawnView(editingLawn: $0) }
+                .sheet(isPresented: $showingFilter) {
+                    FilterLawnsView(filter: $filter, customers: customerNames)
+                }
                 .sheet(isPresented: $showingSettings) { SettingsView() }
                 .task { if lawns.isEmpty { await load() } }
                 .refreshable { await load() }
@@ -106,13 +119,23 @@ struct HomeView: View {
         return dayLawns.count > 5 ? dayLawns : Array(sortedLawns.prefix(5))
     }
 
-    /// The lawns actually shown: every lawn when "See all" is on, otherwise the
-    /// limited recent view.
+    /// Unique customer names present in the data, for the filter picker.
+    private var customerNames: [String] {
+        Array(Set(lawns.compactMap { $0.whereLocation }.filter { !$0.isEmpty })).sorted()
+    }
+
+    /// The lawns actually shown. When a filter is active it applies across *all*
+    /// lawns; otherwise it's every lawn ("See all") or the limited recent view.
     private var visibleLawns: [SheetLawn] {
-        showAll ? sortedLawns : displayedLawns
+        if filter.isActive { return sortedLawns.filter(filter.matches) }
+        return showAll ? sortedLawns : displayedLawns
     }
 
     private var footerText: String {
+        if filter.isActive {
+            let n = visibleLawns.count
+            return "Showing \(n) filtered lawn\(n == 1 ? "" : "s")."
+        }
         if showAll { return "Showing all \(sortedLawns.count) lawns." }
         if isShowingFullDay { return "Showing the last 24 hours (\(displayedLawns.count) lawns)." }
         return "Showing the \(displayedLawns.count) most recent lawns."
@@ -121,6 +144,10 @@ struct HomeView: View {
     private var lawnList: some View {
         List {
             Section {
+                if visibleLawns.isEmpty {
+                    Text("No lawns match your filters.")
+                        .foregroundStyle(.secondary)
+                }
                 ForEach(Array(visibleLawns.enumerated()), id: \.offset) { _, log in
                     Button { editingLawn = log } label: {
                         HStack(alignment: .top, spacing: 8) {
@@ -153,11 +180,17 @@ struct HomeView: View {
                 HStack {
                     Text(footerText)
                     Spacer()
-                    Button(showAll ? "Show less" : "See all") {
-                        withAnimation { showAll.toggle() }
+                    if filter.isActive {
+                        Button("Clear") { filter = LawnFilter() }
+                            .font(.footnote.weight(.semibold))
+                            .textCase(nil)
+                    } else {
+                        Button(showAll ? "Show less" : "See all") {
+                            withAnimation { showAll.toggle() }
+                        }
+                        .font(.footnote.weight(.semibold))
+                        .textCase(nil)
                     }
-                    .font(.footnote.weight(.semibold))
-                    .textCase(nil)
                 }
             }
         }
