@@ -22,3 +22,8 @@ build/
 
 # Local continuity / session notes (kept on-machine, not committed)
 lawnrangershandoff.md
+
+# clasp (Apps Script deploys) — keep login/IDs out of git
+.clasp.json
+.clasprc.json
+backend/.deployment-id
