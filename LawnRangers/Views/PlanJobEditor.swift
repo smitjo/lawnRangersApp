@@ -8,11 +8,13 @@ struct PlanJobEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State private var date: Date
     @State private var notes: String
+    @State private var address: String
 
     init(item: PlannedItem) {
         self.item = item
         _date = State(initialValue: item.scheduledDate)
         _notes = State(initialValue: item.notes ?? "")
+        _address = State(initialValue: item.address ?? "")
     }
 
     var body: some View {
@@ -24,6 +26,11 @@ struct PlanJobEditor: View {
                 Section("When") {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                     DatePicker("Time", selection: $date, displayedComponents: .hourAndMinute)
+                }
+                Section("Address") {
+                    TextField("Street address (for the map route)", text: $address, axis: .vertical)
+                        .textContentType(.fullStreetAddress)
+                        .lineLimit(1...3)
                 }
                 Section("Notes") {
                     TextField("Other info (gate code, where to start, etc.)",
@@ -43,7 +50,7 @@ struct PlanJobEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         dismiss()
-                        Task { await plan.update(id: item.id, date: date, notes: notes) }
+                        Task { await plan.update(id: item.id, date: date, notes: notes, address: address) }
                     }
                 }
             }

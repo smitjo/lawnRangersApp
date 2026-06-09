@@ -114,6 +114,7 @@ function doPost(e) {
         data.customer || '',
         data.scheduled ? new Date(data.scheduled) : new Date(),
         data.notes || '',
+        data.address || '',
         new Date()
       ]);
       return json({ result: 'success' });
@@ -123,6 +124,7 @@ function doPost(e) {
       if (prow === -1) throw new Error('Plan item not found (' + data.id + ').');
       if (data.scheduled) ps2.getRange(prow, 3).setValue(new Date(data.scheduled));
       ps2.getRange(prow, 4).setValue(data.notes || '');
+      ps2.getRange(prow, 5).setValue(data.address || '');
       return json({ result: 'success' });
     } else if (data.type === 'planDelete') {
       var ps3 = planSheet_();
@@ -378,8 +380,8 @@ function planSheet_() {
   var sh = ss.getSheetByName(PLAN_TAB);
   if (!sh) {
     sh = ss.insertSheet(PLAN_TAB);
-    sh.getRange(1, 1, 1, 5)
-      .setValues([['ID', 'Customer', 'Scheduled', 'Notes', 'Created']])
+    sh.getRange(1, 1, 1, 6)
+      .setValues([['ID', 'Customer', 'Scheduled', 'Notes', 'Address', 'Created']])
       .setFontWeight('bold').setBackground('#b7a7e0');
     sh.setFrozenRows(1);
   }
@@ -400,14 +402,15 @@ function readPlan() {
   try {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PLAN_TAB);
     if (sh && sh.getLastRow() >= 2) {
-      var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+      var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues();
       rows.forEach(function (r) {
         if (!r[0]) return;   // need an id
         out.plan.push({
           id: str(r[0]),
           customer: str(r[1]),
           scheduled: (r[2] instanceof Date) ? r[2].getTime() : 0,
-          notes: str(r[3])
+          notes: str(r[3]),
+          address: str(r[4])
         });
       });
     }

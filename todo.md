@@ -410,6 +410,13 @@ endpoint.
   planned item to log it (customer pre-selected); a successful submit removes it.
   **Requires an Apps Script redeploy.** Note: the old local `PlannedJob` SwiftData
   model is now unused (dead code) — remove it (and its schema/preview refs) later.
+- [x] Route mapping: each plan item has an **Address** (Plan tab gets an Address
+  column; editable in PlanJobEditor or directly in the sheet). A "Route" button
+  on the Planning tab opens `RouteMapView`, which geocodes the addresses
+  (CLGeocoder, no permission), maps the stops in planned order, and "Directions"
+  hands the ordered stops to Apple Maps for turn-by-turn. **Requires an Apps
+  Script redeploy** (Address column) + filling in addresses. Fast-follow ideas:
+  optimize stop order (nearest-neighbor), start from current location.
 - [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
   color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
   using NWS hourly + the device's current location.

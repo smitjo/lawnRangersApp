@@ -46,7 +46,7 @@ final class PlanStore: ObservableObject {
         let now = Date()
         // Optimistic: show it right away.
         items.append(PlannedItem(id: id, customer: customer,
-                                 scheduled: now.timeIntervalSince1970 * 1000, notes: ""))
+                                 scheduled: now.timeIntervalSince1970 * 1000, notes: "", address: ""))
         await SheetSubmitter.submit([
             "type": "planAdd",
             "id": id,
@@ -57,12 +57,13 @@ final class PlanStore: ObservableObject {
         await load()
     }
 
-    func update(id: String, date: Date, notes: String) async {
+    func update(id: String, date: Date, notes: String, address: String) async {
         await SheetSubmitter.submit([
             "type": "planUpdate",
             "id": id,
             "scheduled": ISO8601DateFormatter().string(from: date),
             "notes": notes,
+            "address": address,
         ])
         await load()
     }

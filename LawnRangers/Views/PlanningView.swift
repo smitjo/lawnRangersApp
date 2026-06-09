@@ -14,6 +14,7 @@ struct PlanningView: View {
     @ObservedObject private var plan = PlanStore.shared
     @State private var editingPlan: PlannedItem?
     @State private var plannedExpanded = false
+    @State private var showingRoute = false
 
     /// Most overdue first (never-mowed customers sink to the bottom).
     private var sorted: [PlanningCustomer] {
@@ -28,6 +29,12 @@ struct PlanningView: View {
             }
                 .navigationTitle("Planning")
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { showingRoute = true } label: {
+                            Label("Route", systemImage: "map")
+                        }
+                        .disabled(plan.items.isEmpty)
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             weatherRefreshTick += 1   // reload the forecast too
@@ -43,6 +50,7 @@ struct PlanningView: View {
                     await plan.loadIfNeeded()
                 }
                 .sheet(item: $editingPlan) { PlanJobEditor(item: $0) }
+                .sheet(isPresented: $showingRoute) { RouteMapView(items: plan.sorted) }
         }
     }
 
