@@ -13,6 +13,7 @@ struct LogExpenseView: View {
     @State private var comment: String = ""
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+    @FocusState private var customFocused: Bool
 
     /// The expense name to record: "100% Gas", or the typed name when "Other".
     private var resolvedExpense: String {
@@ -48,6 +49,7 @@ struct LogExpenseView: View {
                             inputField {
                                 TextField("Expense name", text: $expenseCustom)
                                     .textInputAutocapitalization(.words)
+                                    .focused($customFocused)
                             }
                         }
                     }
@@ -167,6 +169,12 @@ struct LogExpenseView: View {
         let isOn = expenseChoice == option
         return Button {
             expenseChoice = option
+            // Auto-focus the typed field (and pop the keyboard) when choosing Other.
+            if option == "Other" {
+                DispatchQueue.main.async { customFocused = true }
+            } else {
+                customFocused = false
+            }
         } label: {
             Text(option)
                 .font(.subheadline.weight(.medium))
