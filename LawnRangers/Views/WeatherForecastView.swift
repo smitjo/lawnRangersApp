@@ -40,6 +40,7 @@ struct WeatherForecastView: View {
                         ForEach(days) { dayCard($0) }
                     }
                     .padding(.horizontal)
+                    .padding(.top, 12)   // room for the "MOW" badge above Tue/Thu cards
                 }
                 .scrollBounceBehavior(.basedOnSize, axes: .vertical)   // left/right only
                 legend

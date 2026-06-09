@@ -13,7 +13,6 @@ struct MowingDay: Identifiable {
     let id: String
     let weekdayShort: String   // "Tue"
     let name: String           // "Tuesday"
-    let dateLabel: String      // "Jun 10"
     let date: Date
     let isMowingDay: Bool      // Tuesday / Thursday
     let morning: DaySegment    // 6am–noon
@@ -79,7 +78,6 @@ enum WeatherService {
                 id: iso.string(from: day),
                 weekdayShort: shortWeekday(day),
                 name: dayFmt.string(from: day),
-                dateLabel: shortDate(day),
                 date: day,
                 isMowingDay: WeatherConfig.mowingWeekdays.contains(weekday),
                 morning: DaySegment(rainChance: a.amHours > 0 ? a.amPOP : nil, high: a.amT.max()),
@@ -105,10 +103,6 @@ enum WeatherService {
 
     private static func shortWeekday(_ date: Date) -> String {
         let f = DateFormatter(); f.dateFormat = "EEE"; return f.string(from: date)
-    }
-
-    private static func shortDate(_ date: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "MMM d"; return f.string(from: date)
     }
 }
 
