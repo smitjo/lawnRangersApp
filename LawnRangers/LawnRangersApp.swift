@@ -7,6 +7,7 @@ struct LawnRangersApp: App {
         let schema = Schema([
             LawnLog.self,
             Expense.self,
+            PlannedJob.self,
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {

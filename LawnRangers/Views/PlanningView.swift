@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Planning tab — each customer, how many days since their lawn was mowed
 /// (computed from logged lawns), and how often it should be mowed. Color-coded
@@ -9,6 +10,10 @@ struct PlanningView: View {
     @State private var errorMessage: String?
     /// Bumped to tell the weather strip to reload (from the top reload button).
     @State private var weatherRefreshTick = 0
+
+    @Environment(\.modelContext) private var context
+    @Query(sort: \PlannedJob.scheduledDate) private var planned: [PlannedJob]
+    @State private var editingPlan: PlannedJob?
 
     /// Most overdue first (never-mowed customers sink to the bottom).
     private var sorted: [PlanningCustomer] {
@@ -34,6 +39,7 @@ struct PlanningView: View {
                     }
                 }
                 .task { if customers.isEmpty { await load() } }
+                .sheet(item: $editingPlan) { PlanJobEditor(job: $0) }
         }
     }
 
@@ -57,9 +63,49 @@ struct PlanningView: View {
                 description: Text("Add customers to the ‘Planning’ tab of the sheet.")
             )
         } else {
-            List(sorted) { row($0) }
-                .listStyle(.plain)
+            List {
+                if !planned.isEmpty {
+                    Section("Planned") {
+                        ForEach(planned) { job in
+                            Button { editingPlan = job } label: { plannedRow(job) }
+                                .buttonStyle(.plain)
+                        }
+                        .onDelete(perform: deletePlanned)
+                    }
+                }
+                Section("Customers") {
+                    ForEach(sorted) { row($0) }
+                }
+            }
+            .listStyle(.insetGrouped)
         }
+    }
+
+    // MARK: - Planned jobs
+
+    private func plannedRow(_ job: PlannedJob) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "calendar")
+                .foregroundStyle(Color.lawnGreen)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(job.customer).font(.headline)
+                Text(job.scheduledDate.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption).foregroundStyle(.secondary)
+                if !job.notes.isEmpty {
+                    Text(job.notes).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            Spacer()
+            Image(systemName: "slider.horizontal.3").font(.caption).foregroundStyle(.tertiary)
+        }
+    }
+
+    private func addToPlan(_ c: PlanningCustomer) {
+        context.insert(PlannedJob(customer: c.customer))
+    }
+
+    private func deletePlanned(_ offsets: IndexSet) {
+        for i in offsets { context.delete(planned[i]) }
     }
 
     private func row(_ c: PlanningCustomer) -> some View {
@@ -81,6 +127,13 @@ struct PlanningView: View {
                 .foregroundStyle(dueColor(c))
             }
             Spacer(minLength: 0)
+            Button { addToPlan(c) } label: {
+                Image(systemName: "calendar.badge.plus")
+                    .font(.title3)
+                    .foregroundStyle(Color.lawnGreen)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Add \(c.customer) to plan")
         }
         .padding(.vertical, 4)
     }
@@ -143,4 +196,5 @@ struct PlanningView: View {
 
 #Preview {
     PlanningView()
+        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }

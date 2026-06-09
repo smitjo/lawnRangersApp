@@ -381,6 +381,12 @@ to pivot.
   (Section A spec is now implemented. Expense rows are read-only for now — no
   expense edit/delete; shared card helpers are duplicated across the two log
   forms, a deferred refactor.)
+- [x] Planning feature: a "＋plan" button on each Planning customer adds a
+  PlannedJob (local SwiftData). A "Planned" section on the Planning tab lets you
+  adjust date/time/notes (PlanJobEditor) or swipe to remove. Planned jobs also
+  appear in a "Planned — tap to log" section on the Lawns tab; tapping opens
+  Log-a-Lawn with the customer pre-selected, and a successful submit removes the
+  planned job. Local/per-device for now (no backend); could sync to the sheet later.
 - [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
   color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
   using NWS hourly + the device's current location.

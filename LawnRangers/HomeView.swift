@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct HomeView: View {
     @State private var lawns: [SheetLawn] = []
@@ -14,6 +15,11 @@ struct HomeView: View {
     @State private var editingLawn: SheetLawn?
     @State private var filter = LawnFilter()
     @State private var showingFilter = false
+
+    @Environment(\.modelContext) private var context
+    @Query(sort: \PlannedJob.scheduledDate) private var planned: [PlannedJob]
+    /// A planned job the user tapped to log now.
+    @State private var planningToLog: PlannedJob?
 
     var body: some View {
         NavigationStack {
@@ -54,6 +60,16 @@ struct HomeView: View {
                 }
                 .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames) }
                 .sheet(isPresented: $showingLogExpense) { LogExpenseView() }
+                .sheet(item: $planningToLog, onDismiss: {
+                    Task {
+                        try? await Task.sleep(for: .seconds(0.4))
+                        await load()
+                    }
+                }) { job in
+                    LogLawnView(initialCustomer: job.customer,
+                                knownCustomers: customerNames,
+                                onComplete: { context.delete(job) })
+                }
                 .sheet(item: $editingLawn, onDismiss: {
                     // Give the edit a moment to record, then refresh.
                     Task {
@@ -91,9 +107,9 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if isLoading && lawns.isEmpty {
+        if isLoading && lawns.isEmpty && planned.isEmpty {
             ProgressView("Loading…").frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, lawns.isEmpty {
+        } else if let errorMessage, lawns.isEmpty && planned.isEmpty {
             ContentUnavailableView {
                 Label("Couldn’t load", systemImage: "wifi.exclamationmark")
             } description: {
@@ -101,7 +117,7 @@ struct HomeView: View {
             } actions: {
                 Button("Try Again") { Task { await load() } }
             }
-        } else if lawns.isEmpty {
+        } else if lawns.isEmpty && planned.isEmpty {
             ContentUnavailableView {
                 Label("No lawns yet", systemImage: "tray")
             } description: {
@@ -158,11 +174,34 @@ struct HomeView: View {
         return "Showing the \(displayedLawns.count) most recent lawns."
     }
 
+    private func plannedRow(_ job: PlannedJob) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "calendar.badge.clock")
+                .foregroundStyle(Color.lawnGreen)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(job.customer).font(.headline)
+                Text(job.scheduledDate.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "square.and.pencil")
+                .font(.caption).foregroundStyle(.tertiary)
+        }
+    }
+
     private var lawnList: some View {
         List {
+            if !planned.isEmpty {
+                Section("Planned — tap to log") {
+                    ForEach(planned) { job in
+                        Button { planningToLog = job } label: { plannedRow(job) }
+                            .buttonStyle(.plain)
+                    }
+                }
+            }
             Section {
                 if visibleLawns.isEmpty {
-                    Text("No lawns match your filters.")
+                    Text(filter.isActive ? "No lawns match your filters." : "No lawns logged yet.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(visibleLawns) { log in
@@ -231,4 +270,5 @@ struct HomeView: View {
 
 #Preview {
     HomeView()
+        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }

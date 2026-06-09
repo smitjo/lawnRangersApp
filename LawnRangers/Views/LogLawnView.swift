@@ -16,6 +16,11 @@ struct LogLawnView: View {
     /// the "Where?" dropdown reflects customers already in use across the team.
     var knownCustomers: [String] = []
 
+    /// Pre-selects this customer in "Where?" (used when starting from a planned job).
+    var initialCustomer: String? = nil
+    /// Called after a successful submit (e.g. to clear the originating planned job).
+    var onComplete: (() -> Void)? = nil
+
     /// Previously entered locations, used to grow the "Where?" dropdown.
     @Query(sort: \LawnLog.timestamp, order: .reverse) private var pastLogs: [LawnLog]
 
@@ -331,8 +336,21 @@ struct LogLawnView: View {
 
     /// On first appearance in edit mode, populate the form from the entry.
     private func prefillIfNeeded() {
-        guard let e = editingLawn, !didPrefill else { return }
+        guard !didPrefill else { return }
         didPrefill = true
+
+        // Starting a new lawn from a planned job: just pre-select the customer.
+        guard let e = editingLawn else {
+            if let c = initialCustomer, !c.isEmpty {
+                if allCustomers.contains(c) {
+                    whereSelection = c
+                } else {
+                    whereSelection = Self.otherTag
+                    whereCustom = c
+                }
+            }
+            return
+        }
 
         let w = e.whereLocation ?? ""
         if allCustomers.contains(w) {
@@ -409,6 +427,7 @@ struct LogLawnView: View {
             isSubmitting = false
             switch result {
             case .success:
+                onComplete?()
                 dismiss()
             case .notConfigured:
                 errorMessage = "No backend connected — add the Web App URL in Settings."
@@ -421,5 +440,5 @@ struct LogLawnView: View {
 
 #Preview {
     LogLawnView()
-        .modelContainer(for: [LawnLog.self, Expense.self], inMemory: true)
+        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }
