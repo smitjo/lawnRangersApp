@@ -20,6 +20,7 @@ struct HomeView: View {
     @Query(sort: \PlannedJob.scheduledDate) private var planned: [PlannedJob]
     /// A planned job the user tapped to log now.
     @State private var planningToLog: PlannedJob?
+    @State private var plannedExpanded = false
 
     var body: some View {
         NavigationStack {
@@ -192,10 +193,21 @@ struct HomeView: View {
     private var lawnList: some View {
         List {
             if !planned.isEmpty {
-                Section("Planned — tap to log") {
-                    ForEach(planned) { job in
-                        Button { planningToLog = job } label: { plannedRow(job) }
-                            .buttonStyle(.plain)
+                Section {
+                    DisclosureGroup(isExpanded: $plannedExpanded) {
+                        ForEach(planned) { job in
+                            Button { planningToLog = job } label: { plannedRow(job) }
+                                .buttonStyle(.plain)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "calendar.badge.clock").foregroundStyle(Color.lawnGreen)
+                            Text("Planned — tap to log").font(.headline)
+                            Spacer()
+                            Text("\(planned.count)")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }

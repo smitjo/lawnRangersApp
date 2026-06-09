@@ -14,6 +14,7 @@ struct PlanningView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \PlannedJob.scheduledDate) private var planned: [PlannedJob]
     @State private var editingPlan: PlannedJob?
+    @State private var plannedExpanded = false
 
     /// Most overdue first (never-mowed customers sink to the bottom).
     private var sorted: [PlanningCustomer] {
@@ -65,12 +66,16 @@ struct PlanningView: View {
         } else {
             List {
                 if !planned.isEmpty {
-                    Section("Planned") {
-                        ForEach(planned) { job in
-                            Button { editingPlan = job } label: { plannedRow(job) }
-                                .buttonStyle(.plain)
+                    Section {
+                        DisclosureGroup(isExpanded: $plannedExpanded) {
+                            ForEach(planned) { job in
+                                Button { editingPlan = job } label: { plannedRow(job) }
+                                    .buttonStyle(.plain)
+                            }
+                            .onDelete(perform: deletePlanned)
+                        } label: {
+                            plannedBar
                         }
-                        .onDelete(perform: deletePlanned)
                     }
                 }
                 Section("Customers") {
@@ -82,6 +87,18 @@ struct PlanningView: View {
     }
 
     // MARK: - Planned jobs
+
+    /// The single tappable bar that expands to show the planned jobs.
+    private var plannedBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "calendar.badge.clock").foregroundStyle(Color.lawnGreen)
+            Text("Planned").font(.headline)
+            Spacer()
+            Text("\(planned.count)")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private func plannedRow(_ job: PlannedJob) -> some View {
         HStack(spacing: 12) {
