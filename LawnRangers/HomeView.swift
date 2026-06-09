@@ -7,6 +7,8 @@ struct HomeView: View {
 
     @State private var showingLogLawn = false
     @State private var showingSettings = false
+    /// When true, the list shows every lawn instead of the limited recent view.
+    @State private var showAll = false
 
     var body: some View {
         NavigationStack {
@@ -95,10 +97,22 @@ struct HomeView: View {
         return dayLawns.count > 5 ? dayLawns : Array(sortedLawns.prefix(5))
     }
 
+    /// The lawns actually shown: every lawn when "See all" is on, otherwise the
+    /// limited recent view.
+    private var visibleLawns: [SheetLawn] {
+        showAll ? sortedLawns : displayedLawns
+    }
+
+    private var footerText: String {
+        if showAll { return "Showing all \(sortedLawns.count) lawns." }
+        if isShowingFullDay { return "Showing the last 24 hours (\(displayedLawns.count) lawns)." }
+        return "Showing the \(displayedLawns.count) most recent lawns."
+    }
+
     private var lawnList: some View {
         List {
             Section {
-                ForEach(Array(displayedLawns.enumerated()), id: \.offset) { _, log in
+                ForEach(Array(visibleLawns.enumerated()), id: \.offset) { _, log in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
                             .font(.headline)
@@ -118,9 +132,17 @@ struct HomeView: View {
                     }
                 }
             } footer: {
-                Text(isShowingFullDay
-                     ? "Showing the last 24 hours (\(displayedLawns.count) lawns)."
-                     : "Showing the \(displayedLawns.count) most recent lawns.")
+                HStack {
+                    Text(footerText)
+                    if sortedLawns.count > displayedLawns.count {
+                        Spacer()
+                        Button(showAll ? "Show less" : "See all") {
+                            withAnimation { showAll.toggle() }
+                        }
+                        .font(.footnote.weight(.semibold))
+                        .textCase(nil)
+                    }
+                }
             }
         }
     }
