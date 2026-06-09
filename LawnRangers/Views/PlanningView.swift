@@ -100,6 +100,11 @@ struct PlanningView: View {
         }
     }
 
+    /// The earliest planned job for a customer, if any (to show its date on the row).
+    private func plannedJob(for customer: String) -> PlannedJob? {
+        planned.first { $0.customer == customer }
+    }
+
     private func addToPlan(_ c: PlanningCustomer) {
         context.insert(PlannedJob(customer: c.customer))
     }
@@ -125,6 +130,12 @@ struct PlanningView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(dueColor(c))
+                if let job = plannedJob(for: c.customer) {
+                    Label("Planned \(job.scheduledDate.formatted(date: .abbreviated, time: .shortened))",
+                          systemImage: "calendar.badge.clock")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.lawnGreen)
+                }
             }
             Spacer(minLength: 0)
             Button { addToPlan(c) } label: {
