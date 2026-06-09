@@ -206,6 +206,7 @@ struct HomeView: View {
             lawns = result.lawns
         } catch {
             errorMessage = error.localizedDescription
+            ErrorLogger.log(error.localizedDescription, context: "Lawns load")
         }
         isLoading = false
     }

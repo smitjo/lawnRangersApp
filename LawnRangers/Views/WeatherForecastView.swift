@@ -227,6 +227,7 @@ struct WeatherForecastView: View {
             days = result.days
         } catch {
             errorMessage = error.localizedDescription
+            ErrorLogger.log(error.localizedDescription, context: "Weather load")
         }
         isLoading = false
     }

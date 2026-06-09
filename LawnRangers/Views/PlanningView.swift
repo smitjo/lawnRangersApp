@@ -135,6 +135,7 @@ struct PlanningView: View {
             customers = try await PlanningService.fetch()
         } catch {
             errorMessage = error.localizedDescription
+            ErrorLogger.log(error.localizedDescription, context: "Planning load")
         }
         isLoading = false
     }

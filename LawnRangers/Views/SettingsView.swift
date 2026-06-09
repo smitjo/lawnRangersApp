@@ -61,6 +61,17 @@ struct SettingsView: View {
                 } footer: {
                     Text("Checks whether the URL above (or the built-in one if blank) actually responds. Does not save it.")
                 }
+
+                Section {
+                    Toggle("Log errors to sheet", isOn: Binding(
+                        get: { DebugConfig.errorLoggingEnabled },
+                        set: { DebugConfig.errorLoggingEnabled = $0 }
+                    ))
+                } header: {
+                    Text("Debug")
+                } footer: {
+                    Text("When on, app errors are written to an \"Errors\" tab in the Google Sheet to help diagnose problems in the field.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

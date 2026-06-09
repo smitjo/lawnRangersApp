@@ -37,6 +37,7 @@ var LAWN_TAB = 'Lawn Log';
 var EXPENSE_TAB = 'Overhead Expense';
 var RATES_TAB = 'Rates';
 var PLANNING_TAB = 'Planning';          // built by setupSpreadsheet; read by the app's Planning tab
+var ERROR_TAB = 'Errors';               // created on demand when the app's debug error logging is on
 
 // Lawn tab layout
 var HEADER_ROW = 3;        // row 1 = Total Earned, row 2 = Unpaid amount, row 3 = headers
@@ -92,6 +93,18 @@ function doPost(e) {
         data.customerPaid || '', data.teammemberPaid || '', data.note || ''
       ]]);
       writeCalculatedColumns(sheet, row);
+      return json({ result: 'success' });
+    } else if (data.type === 'error') {
+      // Debug error logging from the app — append to an "Errors" tab, created on demand.
+      var errSheet = ss.getSheetByName(ERROR_TAB);
+      if (!errSheet) {
+        errSheet = ss.insertSheet(ERROR_TAB);
+        errSheet.getRange(1, 1, 1, 4)
+          .setValues([['Timestamp', 'Context', 'Message', 'Device']])
+          .setFontWeight('bold').setBackground('#e6b8b8');
+        errSheet.setFrozenRows(1);
+      }
+      errSheet.appendRow([ts, data.context || '', data.message || '', data.device || '']);
       return json({ result: 'success' });
     } else if (data.type === 'expense') {
       var ex = ss.getSheetByName(EXPENSE_TAB);

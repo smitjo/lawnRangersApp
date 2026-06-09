@@ -370,6 +370,11 @@ to pivot.
   **Requires an Apps Script redeploy to take effect.**
 - [x] Lawns tab filter (top-right): filters across all lawns by customer,
   customer-paid, teammember-paid, team member, and a date-only range (no time).
+- [x] Audit quick-fixes merged to main (reliable save, model-id list, growing
+  customer dropdown, exact filter match, Settings test connection).
+- [x] Debug error logging: a Settings toggle that, when on, posts app errors to
+  an "Errors" tab in the sheet (DebugConfig + ErrorLogger; backend `error`
+  endpoint creates the tab on demand). **Requires an Apps Script redeploy.**
 - [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
   color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
   using NWS hourly + the device's current location.
