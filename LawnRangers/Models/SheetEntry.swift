@@ -25,7 +25,10 @@ struct SheetLawn: Decodable, Identifiable {
 }
 
 /// An expense as read back from the "Overhead Expense" sheet.
-struct SheetExpense: Decodable {
+struct SheetExpense: Decodable, Identifiable {
+    /// Stable-enough identity for list rows (the timestamp is effectively unique).
+    var id: String { "\(ts ?? 0)|\(expenses ?? "")|\(date ?? "")" }
+
     let date: String?
     /// Raw epoch milliseconds (see SheetLawn.ts) for newest→oldest sorting.
     let ts: Double?

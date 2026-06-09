@@ -375,6 +375,12 @@ to pivot.
 - [x] Debug error logging: a Settings toggle that, when on, posts app errors to
   an "Errors" tab in the sheet (DebugConfig + ErrorLogger; backend `error`
   endpoint creates the tab on demand). **Requires an Apps Script redeploy.**
+- [x] Expenses tab built (left of Planning), lists expenses newest-first. The
+  "+" is now a dropdown (Log a Lawn / Log an Expense) on BOTH the Lawns and
+  Expenses tabs, and LogExpenseView was restyled to match the Log-a-Lawn cards.
+  (Section A spec is now implemented. Expense rows are read-only for now — no
+  expense edit/delete; shared card helpers are duplicated across the two log
+  forms, a deferred refactor.)
 - [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
   color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
   using NWS hourly + the device's current location.

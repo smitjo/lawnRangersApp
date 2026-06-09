@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var errorMessage: String?
 
     @State private var showingLogLawn = false
+    @State private var showingLogExpense = false
     @State private var showingSettings = false
     /// When true, the list shows every lawn instead of the limited recent view.
     @State private var showAll = false
@@ -39,12 +40,20 @@ struct HomeView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button { showingLogLawn = true } label: {
-                            Image(systemName: "plus").accessibilityLabel("Log a lawn")
+                        Menu {
+                            Button { showingLogLawn = true } label: {
+                                Label("Log a Lawn", systemImage: "leaf")
+                            }
+                            Button { showingLogExpense = true } label: {
+                                Label("Log an Expense", systemImage: "dollarsign.circle")
+                            }
+                        } label: {
+                            Image(systemName: "plus").accessibilityLabel("Add entry")
                         }
                     }
                 }
                 .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames) }
+                .sheet(isPresented: $showingLogExpense) { LogExpenseView() }
                 .sheet(item: $editingLawn, onDismiss: {
                     // Give the edit a moment to record, then refresh.
                     Task {
@@ -60,6 +69,14 @@ struct HomeView: View {
                 .refreshable { await load() }
                 .onChange(of: showingLogLawn) { _, isShowing in
                     // A form was just dismissed — give the sheet a moment to record, then refresh.
+                    if !isShowing {
+                        Task {
+                            try? await Task.sleep(for: .seconds(1.2))
+                            await load()
+                        }
+                    }
+                }
+                .onChange(of: showingLogExpense) { _, isShowing in
                     if !isShowing {
                         Task {
                             try? await Task.sleep(for: .seconds(1.2))

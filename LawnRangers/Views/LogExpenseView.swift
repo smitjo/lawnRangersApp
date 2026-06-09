@@ -1,7 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// "Log an Expense" — exact copy of the "Overhead Expense" form.
+/// "Log an Expense" — mirrors the "Overhead Expense" form. The look matches the
+/// modern Log-a-Lawn card style; the fields and submitted data are unchanged.
 struct LogExpenseView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -18,40 +19,40 @@ struct LogExpenseView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                            .font(.subheadline)
+            ScrollView {
+                VStack(spacing: 16) {
+                    if let errorMessage {
+                        errorBanner(errorMessage)
                     }
-                }
-                Section {
-                    Text("This is to record any overhead purchases.")
+
+                    Text("Record an overhead purchase for the business.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                Section {
-                    TextField("Your answer", text: $expenses)
-                } header: {
-                    requiredHeader("Expenses")
-                }
+                    fieldCard(icon: "cart.fill", title: "Expense", required: true) {
+                        inputField {
+                            TextField("What did you buy?", text: $expenses)
+                        }
+                    }
 
-                Section {
-                    TextField("Your answer", text: $amount)
-                        .keyboardType(.decimalPad)
-                } header: {
-                    requiredHeader("Amount")
-                }
+                    fieldCard(icon: "dollarsign.circle.fill", title: "Amount", required: true) {
+                        inputField {
+                            TextField("0.00", text: $amount)
+                                .keyboardType(.decimalPad)
+                        }
+                    }
 
-                Section {
-                    TextField("Your answer", text: $comment, axis: .vertical)
-                        .lineLimit(2...5)
-                } header: {
-                    Text("Comment")
+                    fieldCard(icon: "note.text", title: "Comment", required: false) {
+                        inputField {
+                            TextField("Optional details", text: $comment, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
+                    }
                 }
+                .padding(16)
             }
+            .background(backdrop)
             .navigationTitle("Log an Expense")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -63,6 +64,7 @@ struct LogExpenseView: View {
                         ProgressView()
                     } else {
                         Button("Submit") { save() }
+                            .fontWeight(.semibold)
                             .disabled(!canSave)
                     }
                 }
@@ -70,12 +72,79 @@ struct LogExpenseView: View {
         }
     }
 
-    private func requiredHeader(_ title: String) -> some View {
-        HStack(spacing: 4) {
-            Text(title)
-            Text("*").foregroundStyle(.red)
-        }
+    // MARK: - Styled building blocks (mirrors LogLawnView)
+
+    private var backdrop: some View {
+        LinearGradient(
+            colors: [Color(.systemBackground), Color.lawnGreen.opacity(0.10)],
+            startPoint: .top, endPoint: .bottom
+        )
+        .ignoresSafeArea()
     }
+
+    private func fieldCard<Content: View>(
+        icon: String,
+        title: String,
+        required: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.lawnGreen)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                if required {
+                    Text("Required")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func inputField<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(fieldFill)
+    }
+
+    private var fieldFill: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.primary.opacity(0.06))
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text(message).font(.subheadline)
+            Spacer()
+        }
+        .foregroundStyle(.white)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.red.opacity(0.85))
+        )
+    }
+
+    // MARK: - Save
 
     private func save() {
         let expense = Expense(
@@ -84,6 +153,8 @@ struct LogExpenseView: View {
             comment: comment.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         let payload = expense.sheetPayload()
+
+        // Only dismiss once the save is confirmed; on failure keep the form open.
         Task {
             isSubmitting = true
             errorMessage = nil

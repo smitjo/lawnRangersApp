@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// Tab bar hosting the Lawns home and the Planning screen.
+/// Tab bar hosting the Lawns home, the Expenses screen, and the Planning screen.
 struct MainTabView: View {
     var body: some View {
         TabView {
             HomeView()
                 .tabItem { Label("Lawns", systemImage: "leaf.fill") }
+            ExpensesView()
+                .tabItem { Label("Expenses", systemImage: "dollarsign.circle.fill") }
             PlanningView()
                 .tabItem { Label("Planning", systemImage: "calendar") }
         }
