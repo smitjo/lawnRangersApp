@@ -2,7 +2,10 @@ import Foundation
 
 /// A lawn entry as read back from the "Lawn Log" sheet (for displaying the
 /// current state of the sheet on the Home screen).
-struct SheetLawn: Decodable {
+struct SheetLawn: Decodable, Identifiable {
+    /// Stable-enough identity for editing (the timestamp is effectively unique).
+    var id: String { "\(ts ?? 0)|\(whereLocation ?? "")|\(date ?? "")" }
+
     let date: String?
     /// Raw epoch milliseconds from the sheet's Timestamp column, used to sort
     /// newest→oldest in the app independently of the sheet's filter/sort state.

@@ -5,6 +5,11 @@ import SwiftData
 struct LogLawnView: View {
     @Environment(\.dismiss) private var dismiss
 
+    /// When set, the form edits this existing entry (found in the sheet by its
+    /// timestamp) instead of creating a new one.
+    var editingLawn: SheetLawn? = nil
+    @State private var didPrefill = false
+
     /// Previously entered locations, used to grow the "Where?" dropdown.
     @Query(sort: \LawnLog.timestamp, order: .reverse) private var pastLogs: [LawnLog]
 
@@ -131,18 +136,55 @@ struct LogLawnView: View {
                     Text("Note. Include Address & Phone for new customers")
                 }
             }
-            .navigationTitle("Log a Lawn")
+            .navigationTitle(editingLawn == nil ? "Log a Lawn" : "Edit Lawn")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Submit") { save() }
+                    Button(editingLawn == nil ? "Submit" : "Save") { save() }
                         .disabled(!canSave || isSubmitting)
                 }
             }
+            .onAppear { prefillIfNeeded() }
         }
+    }
+
+    // MARK: - Edit prefill
+
+    /// On first appearance in edit mode, populate the form from the entry.
+    private func prefillIfNeeded() {
+        guard let e = editingLawn, !didPrefill else { return }
+        didPrefill = true
+
+        let w = e.whereLocation ?? ""
+        if allCustomers.contains(w) {
+            whereSelection = w
+        } else if !w.isEmpty {
+            whereSelection = Self.otherTag
+            whereCustom = w
+        }
+
+        let names = (e.who ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        var others: [String] = []
+        for name in names {
+            if teamMembers.contains(name) { selectedTeam.insert(name) }
+            else { others.append(name) }
+        }
+        if !others.isEmpty {
+            whoOtherEnabled = true
+            whoOther = others.joined(separator: ", ")
+        }
+
+        let amount = e.howMuch ?? ""
+        howMuch = amount.isEmpty ? "Standard" : amount
+        customerPaid = e.customerPaid ?? ""
+        teammemberPaid = e.teammemberPaid ?? ""
+        note = e.note ?? ""
     }
 
     // MARK: - Reusable rows
@@ -187,13 +229,33 @@ struct LogLawnView: View {
     // MARK: - Save
 
     private func save() {
+        let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Edit mode: update the existing sheet row, matched by its timestamp.
+        if let e = editingLawn, let ts = e.ts {
+            let payload: [String: Any] = [
+                "type": "lawnUpdate",
+                "ts": ts,
+                "where": resolvedWhere,
+                "who": resolvedTeam.joined(separator: ", "),
+                "howMuch": resolvedHowMuch,
+                "customerPaid": customerPaid,
+                "teammemberPaid": teammemberPaid,
+                "note": trimmedNote,
+            ]
+            Task { await SheetSubmitter.submit(payload) }
+            dismiss()
+            return
+        }
+
+        // Create mode: append a new entry.
         let log = LawnLog(
             whereLocation: resolvedWhere,
             who: resolvedTeam,
             howMuch: resolvedHowMuch,
             customerPaid: customerPaid,
             teammemberPaid: teammemberPaid,
-            note: note.trimmingCharacters(in: .whitespacesAndNewlines)
+            note: trimmedNote
         )
         let payload = log.sheetPayload()
         Task { await SheetSubmitter.submit(payload) }

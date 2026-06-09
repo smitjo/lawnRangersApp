@@ -9,6 +9,8 @@ struct HomeView: View {
     @State private var showingSettings = false
     /// When true, the list shows every lawn instead of the limited recent view.
     @State private var showAll = false
+    /// The lawn being edited (set by tapping a row).
+    @State private var editingLawn: SheetLawn?
 
     var body: some View {
         NavigationStack {
@@ -33,6 +35,13 @@ struct HomeView: View {
                     }
                 }
                 .sheet(isPresented: $showingLogLawn) { LogLawnView() }
+                .sheet(item: $editingLawn, onDismiss: {
+                    // Give the edit a moment to record, then refresh.
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.2))
+                        await load()
+                    }
+                }) { LogLawnView(editingLawn: $0) }
                 .sheet(isPresented: $showingSettings) { SettingsView() }
                 .task { if lawns.isEmpty { await load() } }
                 .refreshable { await load() }
@@ -113,23 +122,32 @@ struct HomeView: View {
         List {
             Section {
                 ForEach(Array(visibleLawns.enumerated()), id: \.offset) { _, log in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
-                            .font(.headline)
-                        HStack {
-                            Text(log.date ?? "")
-                            Spacer()
-                            Text(log.howMuch ?? "")
+                    Button { editingLawn = log } label: {
+                        HStack(alignment: .top, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(log.whereLocation?.isEmpty == false ? log.whereLocation! : "Lawn")
+                                    .font(.headline)
+                                HStack {
+                                    Text(log.date ?? "")
+                                    Spacer()
+                                    Text(log.howMuch ?? "")
+                                }
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                HStack(spacing: 12) {
+                                    Label("Customer: \(log.customerPaid ?? "")", systemImage: "person")
+                                    Label("Team: \(log.teammemberPaid ?? "")", systemImage: "person.2")
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
                         }
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        HStack(spacing: 12) {
-                            Label("Customer: \(log.customerPaid ?? "")", systemImage: "person")
-                            Label("Team: \(log.teammemberPaid ?? "")", systemImage: "person.2")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                     }
+                    .buttonStyle(.plain)
                 }
             } footer: {
                 HStack {

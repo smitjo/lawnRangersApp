@@ -251,6 +251,10 @@ Defer EventKit/calendar unless a true calendar event is wanted.
   the sheet's filter/sort.
 - [x] Lawns tab shows the 5 most recent lawns by default, and the whole last-24h
   day's lawns when that day has more than 5 (app-side, by timestamp).
+- [x] Lawns tab "See all / Show less" toggle (always visible on the footer line).
+- [x] Tap a lawn to edit all its fields; the change is written back to the sheet
+  row (matched by timestamp) via a new `lawnUpdate` Apps Script endpoint.
+  **Requires an Apps Script redeploy to take effect.**
 - [x] Mowing-weather strip on the Planning tab: each day split AM/PM and
   color-coded by rain chance (green/yellow/red) with temp, Tue/Thu highlighted,
   using NWS hourly + the device's current location.

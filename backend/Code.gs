@@ -68,7 +68,32 @@ function doPost(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var ts = data.timestamp ? new Date(data.timestamp) : new Date();
 
-    if (data.type === 'expense') {
+    if (data.type === 'lawnUpdate') {
+      // Edit an existing Lawn Log row, found by matching its timestamp (epoch ms).
+      var sheet = ss.getSheetByName(LAWN_TAB);
+      if (!sheet) throw new Error('Tab not found: ' + LAWN_TAB + ' (run setupSpreadsheet first)');
+      var lastRow = sheet.getLastRow();
+      if (lastRow < FIRST_DATA_ROW) throw new Error('No lawn rows to edit.');
+      var target = Number(data.ts);
+      var n = lastRow - FIRST_DATA_ROW + 1;
+      var stamps = sheet.getRange(FIRST_DATA_ROW, 1, n, 1).getValues();
+      var row = -1;
+      for (var i = 0; i < stamps.length; i++) {
+        var cell = stamps[i][0];
+        if (cell instanceof Date && Math.abs(cell.getTime() - target) < 1000) {
+          row = FIRST_DATA_ROW + i;
+          break;
+        }
+      }
+      if (row === -1) throw new Error('Entry not found (ts ' + target + ').');
+      // Update columns B–G (timestamp in A stays), then recompute H–N.
+      sheet.getRange(row, 2, 1, 6).setValues([[
+        data.where || '', data.who || '', data.howMuch || '',
+        data.customerPaid || '', data.teammemberPaid || '', data.note || ''
+      ]]);
+      writeCalculatedColumns(sheet, row);
+      return json({ result: 'success' });
+    } else if (data.type === 'expense') {
       var ex = ss.getSheetByName(EXPENSE_TAB);
       if (!ex) throw new Error('Tab not found: ' + EXPENSE_TAB + ' (run setupSpreadsheet first)');
       ex.appendRow([ts, data.expenses || '', data.amount || '', data.comment || '']);
