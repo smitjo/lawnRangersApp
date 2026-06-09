@@ -38,6 +38,7 @@ var EXPENSE_TAB = 'Overhead Expense';
 var RATES_TAB = 'Rates';
 var PLANNING_TAB = 'Planning';          // built by setupSpreadsheet; read by the app's Planning tab
 var ERROR_TAB = 'Errors';               // created on demand when the app's debug error logging is on
+var PLAN_TAB = 'Plan';                  // the shared planning backlog; created on demand
 
 // Lawn tab layout
 var HEADER_ROW = 3;        // row 1 = Total Earned, row 2 = Unpaid amount, row 3 = headers
@@ -106,6 +107,28 @@ function doPost(e) {
       }
       errSheet.appendRow([ts, data.context || '', data.message || '', data.device || '']);
       return json({ result: 'success' });
+    } else if (data.type === 'planAdd') {
+      var ps = planSheet_();
+      ps.appendRow([
+        data.id || '',
+        data.customer || '',
+        data.scheduled ? new Date(data.scheduled) : new Date(),
+        data.notes || '',
+        new Date()
+      ]);
+      return json({ result: 'success' });
+    } else if (data.type === 'planUpdate') {
+      var ps2 = planSheet_();
+      var prow = planFindRow_(ps2, data.id);
+      if (prow === -1) throw new Error('Plan item not found (' + data.id + ').');
+      if (data.scheduled) ps2.getRange(prow, 3).setValue(new Date(data.scheduled));
+      ps2.getRange(prow, 4).setValue(data.notes || '');
+      return json({ result: 'success' });
+    } else if (data.type === 'planDelete') {
+      var ps3 = planSheet_();
+      var drow = planFindRow_(ps3, data.id);
+      if (drow !== -1) ps3.deleteRow(drow);
+      return json({ result: 'success' });
     } else if (data.type === 'expense') {
       var ex = ss.getSheetByName(EXPENSE_TAB);
       if (!ex) throw new Error('Tab not found: ' + EXPENSE_TAB + ' (run setupSpreadsheet first)');
@@ -136,7 +159,9 @@ function doPost(e) {
 // app can mirror the sheet (reflecting adds and deletions).
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'planning';
-  var out = (action === 'entries') ? readEntries() : readPlanning();
+  var out = (action === 'entries') ? readEntries()
+          : (action === 'plan')    ? readPlan()
+          : readPlanning();
 
   var payload = JSON.stringify(out);
   var cb = (e && e.parameter) ? e.parameter.callback : null;
@@ -345,6 +370,52 @@ function json(obj) {
 }
 
 function str(v) { return (v === null || v === undefined) ? '' : String(v); }
+
+// ── Planning backlog (shared "Plan" tab) ────────────────────────────────────
+// Columns: A id, B customer, C scheduled (date+time), D notes, E created.
+function planSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(PLAN_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(PLAN_TAB);
+    sh.getRange(1, 1, 1, 5)
+      .setValues([['ID', 'Customer', 'Scheduled', 'Notes', 'Created']])
+      .setFontWeight('bold').setBackground('#b7a7e0');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function planFindRow_(sh, id) {
+  if (sh.getLastRow() < 2) return -1;
+  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) return i + 2;
+  }
+  return -1;
+}
+
+function readPlan() {
+  var out = { plan: [] };
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PLAN_TAB);
+    if (sh && sh.getLastRow() >= 2) {
+      var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+      rows.forEach(function (r) {
+        if (!r[0]) return;   // need an id
+        out.plan.push({
+          id: str(r[0]),
+          customer: str(r[1]),
+          scheduled: (r[2] instanceof Date) ? r[2].getTime() : 0,
+          notes: str(r[3])
+        });
+      });
+    }
+  } catch (err) {
+    out.error = String(err);
+  }
+  return out;
+}
 
 /// Coerce a sheet cell to a number. Handles plain numbers, numeric strings, and
 /// the case where a day-count formula (e.g. TODAY()-lastMowed) gets auto-

@@ -11,9 +11,8 @@ struct PlanningView: View {
     /// Bumped to tell the weather strip to reload (from the top reload button).
     @State private var weatherRefreshTick = 0
 
-    @Environment(\.modelContext) private var context
-    @Query(sort: \PlannedJob.scheduledDate) private var planned: [PlannedJob]
-    @State private var editingPlan: PlannedJob?
+    @ObservedObject private var plan = PlanStore.shared
+    @State private var editingPlan: PlannedItem?
     @State private var plannedExpanded = false
 
     /// Most overdue first (never-mowed customers sink to the bottom).
@@ -39,8 +38,11 @@ struct PlanningView: View {
                         .disabled(isLoading)
                     }
                 }
-                .task { if customers.isEmpty { await load() } }
-                .sheet(item: $editingPlan) { PlanJobEditor(job: $0) }
+                .task {
+                    if customers.isEmpty { await load() }
+                    await plan.loadIfNeeded()
+                }
+                .sheet(item: $editingPlan) { PlanJobEditor(item: $0) }
         }
     }
 
@@ -65,10 +67,10 @@ struct PlanningView: View {
             )
         } else {
             List {
-                if !planned.isEmpty {
+                if !plan.items.isEmpty {
                     Section {
                         DisclosureGroup(isExpanded: $plannedExpanded) {
-                            ForEach(planned) { job in
+                            ForEach(plan.sorted) { job in
                                 Button { editingPlan = job } label: { plannedRow(job) }
                                     .buttonStyle(.plain)
                             }
@@ -94,13 +96,13 @@ struct PlanningView: View {
             Image(systemName: "calendar.badge.clock").foregroundStyle(Color.lawnGreen)
             Text("Planned").font(.headline)
             Spacer()
-            Text("\(planned.count)")
+            Text("\(plan.items.count)")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
     }
 
-    private func plannedRow(_ job: PlannedJob) -> some View {
+    private func plannedRow(_ job: PlannedItem) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "calendar")
                 .foregroundStyle(Color.lawnGreen)
@@ -108,8 +110,8 @@ struct PlanningView: View {
                 Text(job.customer).font(.headline)
                 Text(job.scheduledDate.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption).foregroundStyle(.secondary)
-                if !job.notes.isEmpty {
-                    Text(job.notes).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if let n = job.notes, !n.isEmpty {
+                    Text(n).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer()
@@ -118,11 +120,12 @@ struct PlanningView: View {
     }
 
     private func addToPlan(_ c: PlanningCustomer) {
-        context.insert(PlannedJob(customer: c.customer))
+        Task { await plan.add(customer: c.customer) }
     }
 
     private func deletePlanned(_ offsets: IndexSet) {
-        for i in offsets { context.delete(planned[i]) }
+        let ids = offsets.map { plan.sorted[$0].id }
+        Task { for id in ids { await plan.remove(id: id) } }
     }
 
     private func row(_ c: PlanningCustomer) -> some View {

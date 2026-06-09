@@ -16,10 +16,9 @@ struct HomeView: View {
     @State private var filter = LawnFilter()
     @State private var showingFilter = false
 
-    @Environment(\.modelContext) private var context
-    @Query(sort: \PlannedJob.scheduledDate) private var planned: [PlannedJob]
+    @ObservedObject private var plan = PlanStore.shared
     /// A planned job the user tapped to log now.
-    @State private var planningToLog: PlannedJob?
+    @State private var planningToLog: PlannedItem?
     @State private var plannedExpanded = false
 
     var body: some View {
@@ -69,7 +68,7 @@ struct HomeView: View {
                 }) { job in
                     LogLawnView(knownCustomers: customerNames,
                                 initialCustomer: job.customer,
-                                onComplete: { context.delete(job) })
+                                onComplete: { Task { await plan.remove(id: job.id) } })
                 }
                 .sheet(item: $editingLawn, onDismiss: {
                     // Give the edit a moment to record, then refresh.
@@ -82,8 +81,14 @@ struct HomeView: View {
                     FilterLawnsView(filter: $filter, customers: customerNames)
                 }
                 .sheet(isPresented: $showingSettings) { SettingsView() }
-                .task { if lawns.isEmpty { await load() } }
-                .refreshable { await load() }
+                .task {
+                    if lawns.isEmpty { await load() }
+                    await plan.loadIfNeeded()
+                }
+                .refreshable {
+                    await load()
+                    await plan.load()
+                }
                 .onChange(of: showingLogLawn) { _, isShowing in
                     // A form was just dismissed — give the sheet a moment to record, then refresh.
                     if !isShowing {
@@ -108,9 +113,9 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if isLoading && lawns.isEmpty && planned.isEmpty {
+        if isLoading && lawns.isEmpty && plan.items.isEmpty {
             ProgressView("Loading…").frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, lawns.isEmpty && planned.isEmpty {
+        } else if let errorMessage, lawns.isEmpty && plan.items.isEmpty {
             ContentUnavailableView {
                 Label("Couldn’t load", systemImage: "wifi.exclamationmark")
             } description: {
@@ -118,7 +123,7 @@ struct HomeView: View {
             } actions: {
                 Button("Try Again") { Task { await load() } }
             }
-        } else if lawns.isEmpty && planned.isEmpty {
+        } else if lawns.isEmpty && plan.items.isEmpty {
             ContentUnavailableView {
                 Label("No lawns yet", systemImage: "tray")
             } description: {
@@ -175,7 +180,7 @@ struct HomeView: View {
         return "Showing the \(displayedLawns.count) most recent lawns."
     }
 
-    private func plannedRow(_ job: PlannedJob) -> some View {
+    private func plannedRow(_ job: PlannedItem) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "calendar.badge.clock")
                 .foregroundStyle(Color.lawnGreen)
@@ -192,19 +197,19 @@ struct HomeView: View {
 
     private var lawnList: some View {
         List {
-            if !planned.isEmpty {
+            if !plan.items.isEmpty {
                 Section {
                     DisclosureGroup(isExpanded: $plannedExpanded) {
-                        ForEach(planned) { job in
+                        ForEach(plan.sorted) { job in
                             Button { planningToLog = job } label: { plannedRow(job) }
                                 .buttonStyle(.plain)
                         }
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "calendar.badge.clock").foregroundStyle(Color.lawnGreen)
-                            Text("Planned — tap to log").font(.headline)
+                            Text("Planned").font(.headline)
                             Spacer()
-                            Text("\(planned.count)")
+                            Text("\(plan.items.count)")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
                         }
