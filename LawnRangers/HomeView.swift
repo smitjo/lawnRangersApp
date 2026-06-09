@@ -66,8 +66,8 @@ struct HomeView: View {
                         await load()
                     }
                 }) { job in
-                    LogLawnView(initialCustomer: job.customer,
-                                knownCustomers: customerNames,
+                    LogLawnView(knownCustomers: customerNames,
+                                initialCustomer: job.customer,
                                 onComplete: { context.delete(job) })
                 }
                 .sheet(item: $editingLawn, onDismiss: {
