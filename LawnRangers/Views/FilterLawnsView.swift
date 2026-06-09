@@ -41,6 +41,17 @@ struct FilterLawnsView: View {
                     }
                 }
 
+                Section("Date range") {
+                    Toggle("From date", isOn: fromEnabled)
+                    if filter.fromDate != nil {
+                        DatePicker("From", selection: fromBinding, displayedComponents: .date)
+                    }
+                    Toggle("To date", isOn: toEnabled)
+                    if filter.toDate != nil {
+                        DatePicker("To", selection: toBinding, displayedComponents: .date)
+                    }
+                }
+
                 if filter.isActive {
                     Section {
                         Button("Clear all filters", role: .destructive) {
@@ -68,5 +79,23 @@ struct FilterLawnsView: View {
     private var teamBinding: Binding<String> {
         Binding(get: { filter.teamMember ?? "" },
                 set: { filter.teamMember = $0.isEmpty ? nil : $0 })
+    }
+
+    private var fromEnabled: Binding<Bool> {
+        Binding(get: { filter.fromDate != nil },
+                set: { filter.fromDate = $0 ? (filter.fromDate ?? Date()) : nil })
+    }
+    private var fromBinding: Binding<Date> {
+        Binding(get: { filter.fromDate ?? Date() },
+                set: { filter.fromDate = $0 })
+    }
+
+    private var toEnabled: Binding<Bool> {
+        Binding(get: { filter.toDate != nil },
+                set: { filter.toDate = $0 ? (filter.toDate ?? Date()) : nil })
+    }
+    private var toBinding: Binding<Date> {
+        Binding(get: { filter.toDate ?? Date() },
+                set: { filter.toDate = $0 })
     }
 }
