@@ -205,6 +205,27 @@ enum PlanningSubmitter {
 3. Add a local notification reminder for the chosen date.
 Defer EventKit/calendar unless a true calendar event is wanted.
 
+## A5. Performance — scaling the Lawns list (only at higher capacity)
+
+Not needed now. The SwiftUI `List` renders lazily (fine to 10k+ rows). The real
+costs as data grows are: (1) every refresh fetches **all** lawns in one Apps
+Script JSON blob (even the recent view fetches everything then filters), and
+(2) `sortedLawns`/`displayedLawns` are computed properties, so they **re-sort on
+every redraw**.
+
+Rough thresholds (a lawn business logs ~600 mows/year, so these are years out):
+- **< ~500:** nothing to do.
+- **~500–2,000:** fine; memoize the sort if any lag appears.
+- **~2,000–5,000:** **memoize the sort** — sort once into `@State` when data
+  loads instead of recomputing every redraw. Cheap, low-risk win.
+- **~5,000–10,000+:** **backend pagination** — fetch recent by default and load
+  older rows as you scroll (range-based `readEntries`, e.g. `?action=entries&before=<ts>&limit=N`).
+
+- [ ] **Memoize the Lawns sort** when we approach a few thousand entries (store
+  the sorted array in state on load; don't re-sort in computed properties).
+- [ ] **Add backend pagination** if we ever approach ~5k+ entries (load-as-you-
+  scroll from the sheet instead of fetching everything each refresh).
+
 ## B. Remaining open items from the project handoff
 
 - [ ] **Backend redeploy (#3) — REQUIRED for the newest→oldest sort.** The Lawns
