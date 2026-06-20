@@ -131,6 +131,12 @@ function doPost(e) {
       var drow = planFindRow_(ps3, data.id);
       if (drow !== -1) ps3.deleteRow(drow);
       return json({ result: 'success' });
+    } else if (data.type === 'voiceSTT') {
+      // Voice planning: proxy speech-to-text to ElevenLabs (key stays server-side).
+      return json(elevenLabsSTT_(data));
+    } else if (data.type === 'voiceTTS') {
+      // Voice planning: proxy text-to-speech to ElevenLabs, return base64 MP3.
+      return json(elevenLabsTTS_(data));
     } else if (data.type === 'expense') {
       var ex = ss.getSheetByName(EXPENSE_TAB);
       if (!ex) throw new Error('Tab not found: ' + EXPENSE_TAB + ' (run setupSpreadsheet first)');
@@ -422,6 +428,68 @@ function json(obj) {
 }
 
 function str(v) { return (v === null || v === undefined) ? '' : String(v); }
+
+// ── ElevenLabs voice proxy ───────────────────────────────────────────────────
+// The API key lives in Script Properties (Project Settings → Script Properties),
+// NEVER in this file or the app. Set:
+//   ELEVENLABS_API_KEY  = your key (required)
+//   ELEVENLABS_VOICE_ID = a voice id (optional; defaults to "Rachel")
+function elevenLabsKey_() {
+  var k = PropertiesService.getScriptProperties().getProperty('ELEVENLABS_API_KEY');
+  if (!k) throw new Error('ELEVENLABS_API_KEY is not set in Script Properties.');
+  return k;
+}
+function elevenLabsVoice_() {
+  return PropertiesService.getScriptProperties().getProperty('ELEVENLABS_VOICE_ID')
+    || '21m00Tcm4TlvDq8ikWAM';
+}
+
+// Speech-to-Text: app sends base64 audio, we forward it to Scribe as multipart.
+function elevenLabsSTT_(data) {
+  try {
+    var bytes = Utilities.base64Decode(data.audio || '');
+    var blob = Utilities.newBlob(bytes, data.mimeType || 'audio/mp4', 'audio.m4a');
+    var resp = UrlFetchApp.fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'post',
+      headers: { 'xi-api-key': elevenLabsKey_() },
+      payload: { model_id: 'scribe_v1', file: blob },   // object + Blob → multipart/form-data
+      muteHttpExceptions: true
+    });
+    var code = resp.getResponseCode();
+    if (code < 200 || code >= 300) {
+      return { error: 'ElevenLabs STT ' + code + ': ' + resp.getContentText().slice(0, 200) };
+    }
+    var parsed = JSON.parse(resp.getContentText());
+    return { text: parsed.text || '' };
+  } catch (err) {
+    return { error: String(err) };
+  }
+}
+
+// Text-to-Speech: app sends text, we return the spoken MP3 as base64.
+function elevenLabsTTS_(data) {
+  try {
+    var url = 'https://api.elevenlabs.io/v1/text-to-speech/' + elevenLabsVoice_();
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'xi-api-key': elevenLabsKey_(), 'Accept': 'audio/mpeg' },
+      payload: JSON.stringify({
+        text: data.text || '',
+        model_id: 'eleven_flash_v2_5',
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+      }),
+      muteHttpExceptions: true
+    });
+    var code = resp.getResponseCode();
+    if (code < 200 || code >= 300) {
+      return { error: 'ElevenLabs TTS ' + code + ': ' + resp.getContentText().slice(0, 200) };
+    }
+    return { audio: Utilities.base64Encode(resp.getBlob().getBytes()) };
+  } catch (err) {
+    return { error: String(err) };
+  }
+}
 
 // ── Planning backlog (shared "Plan" tab) ────────────────────────────────────
 // Columns: A id, B customer, C scheduled (date+time), D notes, E created.

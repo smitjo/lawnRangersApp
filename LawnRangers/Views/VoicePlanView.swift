@@ -64,11 +64,11 @@ struct VoicePlanView: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(!ElevenLabsConfig.isConfigured || model.isWorking)
+            .disabled(!ElevenLabsService.isConfigured || model.isWorking)
 
-            if !ElevenLabsConfig.isConfigured {
-                Label("Add your ElevenLabs API key in Settings to use voice.",
-                      systemImage: "key")
+            if !ElevenLabsService.isConfigured {
+                Label("Connect the Google Sheets backend in Settings to use voice.",
+                      systemImage: "antenna.radiowaves.left.and.right")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if !model.transcript.isEmpty {
@@ -282,7 +282,7 @@ final class VoicePlanModel: ObservableObject {
     }
 
     private func speak(_ text: String) async {
-        guard ElevenLabsConfig.isConfigured else { return }
+        guard ElevenLabsService.isConfigured else { return }
         do {
             let audio = try await ElevenLabsService.speak(text)
             recorder.play(audio)

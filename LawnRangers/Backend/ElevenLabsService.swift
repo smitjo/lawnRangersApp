@@ -1,119 +1,82 @@
 import Foundation
 
-/// Thin client for the two ElevenLabs REST endpoints the app uses:
-///   • Speech-to-Text (Scribe) — POST /v1/speech-to-text  (multipart audio → text)
-///   • Text-to-Speech (Flash)  — POST /v1/text-to-speech/{voiceId}  (text → MP3)
-///
-/// The API key is read from `ElevenLabsConfig` and sent in the `xi-api-key`
-/// header. Network/HTTP failures throw an `ElevenLabsError` with a friendly,
-/// user-facing message.
+/// Voice client for the planning feature. The ElevenLabs API key lives
+/// **server-side** in the Apps Script backend (Script Properties), so the app
+/// never holds it. We POST to the same Web App endpoint, which proxies to
+/// ElevenLabs:
+///   • Speech-to-Text (Scribe) — POST {type:"voiceSTT", audio:<base64>}  → {text}
+///   • Text-to-Speech (Flash)  — POST {type:"voiceTTS", text:<string>}    → {audio:<base64 MP3>}
 enum ElevenLabsService {
-    private static let base = URL(string: "https://api.elevenlabs.io")!
-
     enum ElevenLabsError: LocalizedError {
         case notConfigured
         case http(Int, String)
+        case server(String)
         case empty
 
         var errorDescription: String? {
             switch self {
             case .notConfigured:
-                return "Add your ElevenLabs API key in Settings to use voice."
+                return "No backend configured (Settings) — voice needs the Google Sheets backend."
             case .http(let code, let body):
                 let detail = body.isEmpty ? "" : " — \(body)"
-                return "ElevenLabs error (\(code))\(detail)."
+                return "Voice backend error (\(code))\(detail)."
+            case .server(let msg):
+                return msg
             case .empty:
-                return "ElevenLabs returned no audio."
+                return "The voice backend returned no audio."
             }
         }
     }
 
+    /// Voice works whenever the backend endpoint is set (the key lives there).
+    static var isConfigured: Bool { BackendConfig.isConfigured }
+
     // MARK: - Speech-to-Text (Scribe)
 
-    /// Transcribes a recorded audio file to text via Scribe.
+    /// Transcribes a recorded audio file to text via the backend proxy.
     static func transcribe(audioURL: URL) async throws -> String {
-        let key = ElevenLabsConfig.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { throw ElevenLabsError.notConfigured }
-
-        let url = base.appendingPathComponent("/v1/speech-to-text")
-        let boundary = "Boundary-\(UUID().uuidString)"
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue(key, forHTTPHeaderField: "xi-api-key")
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-
         let audio = try Data(contentsOf: audioURL)
-        var body = Data()
-        body.appendFormField("model_id", value: ElevenLabsConfig.sttModelID, boundary: boundary)
-        body.appendFileField("file", filename: "audio.m4a", mimeType: "audio/mp4",
-                             fileData: audio, boundary: boundary)
-        body.append("--\(boundary)--\r\n")
-        request.httpBody = body
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try check(response, data)
-
-        let decoded = try JSONDecoder().decode(ScribeResponse.self, from: data)
-        return decoded.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resp = try await postJSON([
+            "type": "voiceSTT",
+            "audio": audio.base64EncodedString(),
+            "mimeType": "audio/mp4",
+        ])
+        if let err = resp["error"] as? String, !err.isEmpty { throw ElevenLabsError.server(err) }
+        guard let text = resp["text"] as? String else { throw ElevenLabsError.empty }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-
-    private struct ScribeResponse: Decodable { let text: String }
 
     // MARK: - Text-to-Speech
 
-    /// Synthesizes `text` to MP3 audio data using the configured voice.
+    /// Synthesizes `text` to MP3 audio data via the backend proxy.
     static func speak(_ text: String) async throws -> Data {
-        let key = ElevenLabsConfig.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { throw ElevenLabsError.notConfigured }
-
-        let url = base.appendingPathComponent("/v1/text-to-speech/\(ElevenLabsConfig.voiceID)")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue(key, forHTTPHeaderField: "xi-api-key")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "text": text,
-            "model_id": ElevenLabsConfig.ttsModelID,
-            "voice_settings": ["stability": 0.5, "similarity_boost": 0.75],
-        ])
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try check(response, data)
-        guard !data.isEmpty else { throw ElevenLabsError.empty }
+        let resp = try await postJSON(["type": "voiceTTS", "text": text])
+        if let err = resp["error"] as? String, !err.isEmpty { throw ElevenLabsError.server(err) }
+        guard let b64 = resp["audio"] as? String,
+              let data = Data(base64Encoded: b64), !data.isEmpty else {
+            throw ElevenLabsError.empty
+        }
         return data
     }
 
     // MARK: - Helpers
 
-    private static func check(_ response: URLResponse, _ data: Data) throws {
-        guard let http = response as? HTTPURLResponse else { return }
-        if !(200...299).contains(http.statusCode) {
+    /// POSTs JSON to the Apps Script Web App and returns the decoded response.
+    private static func postJSON(_ payload: [String: Any]) async throws -> [String: Any] {
+        guard let url = BackendConfig.webAppURL else { throw ElevenLabsError.notConfigured }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             let body = String(data: data, encoding: .utf8) ?? ""
             throw ElevenLabsError.http(http.statusCode, String(body.prefix(200)))
         }
-    }
-}
-
-// MARK: - Multipart form helpers
-
-private extension Data {
-    mutating func append(_ string: String) {
-        if let d = string.data(using: .utf8) { append(d) }
-    }
-
-    mutating func appendFormField(_ name: String, value: String, boundary: String) {
-        append("--\(boundary)\r\n")
-        append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n")
-        append("\(value)\r\n")
-    }
-
-    mutating func appendFileField(_ name: String, filename: String, mimeType: String,
-                                  fileData: Data, boundary: String) {
-        append("--\(boundary)\r\n")
-        append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n")
-        append("Content-Type: \(mimeType)\r\n\r\n")
-        append(fileData)
-        append("\r\n")
+        guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ElevenLabsError.empty
+        }
+        return obj
     }
 }

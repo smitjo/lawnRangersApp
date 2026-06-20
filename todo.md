@@ -387,11 +387,15 @@ and the **`?action=autoschedule`** endpoint (Tue/Thu auto-scheduling).
   action with an **On device / From sheet** toggle — the sheet path uses a new
   backend endpoint `?action=autoschedule` (`AutoScheduleService` →
   `readAutoSchedule` in `Code.gs`) that applies the identical Tue/Thu rule
-  server-side. Setup: ElevenLabs API key (+ optional Voice ID) is entered in
-  **Settings**, stored per-device in `ElevenLabsConfig` (never committed).
+  server-side. Setup: the **ElevenLabs API key lives server-side** in the Apps
+  Script **Script Properties** (`ELEVENLABS_API_KEY`, optional
+  `ELEVENLABS_VOICE_ID`) — never in the repo or on devices. The app POSTs to the
+  Web App, which proxies to ElevenLabs (`voiceSTT`/`voiceTTS` in `Code.gs` →
+  base64 audio both ways); `ElevenLabsService` is the client.
   `NSMicrophoneUsageDescription` added to the build settings.
-  **Requires an Apps Script redeploy** for the `?action=autoschedule` endpoint
-  (the voice/STT/TTS and on-device scheduling work without a redeploy).
+  **Requires an Apps Script redeploy** (the `?action=autoschedule` endpoint **and**
+  the `voiceSTT`/`voiceTTS` voice proxy) plus setting `ELEVENLABS_API_KEY` in
+  Script Properties. On-device auto-scheduling works without any of that.
 
 
 - [x] Persist signing `DEVELOPMENT_TEAM` so it stops disappearing.
