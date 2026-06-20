@@ -334,9 +334,9 @@ can push `Code.gs` + redeploy the same `/exec` URL in one command (files:
    `backend/.deployment-id` and runs the first `./backend/deploy.sh`.
 
 Until then, deploy backend changes **manually** (paste `Code.gs` into Apps Script
-→ Deploy → Manage deployments → Edit → New version). Two backend changes are
-currently waiting on a redeploy: the **Plan** endpoints and the **error-logging**
-endpoint.
+→ Deploy → Manage deployments → Edit → New version). Backend changes currently
+waiting on a redeploy: the **Plan** endpoints, the **error-logging** endpoint,
+and the **`?action=autoschedule`** endpoint (Tue/Thu auto-scheduling).
 
 ## B. Remaining open items from the project handoff
 
@@ -375,6 +375,24 @@ endpoint.
     refresh its range.
 
 ## Done (for reference)
+
+- [x] **Voice planning + Tue/Thu auto-scheduling (ElevenLabs)** — on branch
+  `claude/app-features-operations-ab8gdw`. A mic button on the Planning tab opens
+  `VoicePlanView`: speak a customer ("plan Johnson") or "schedule everyone", the
+  audio is transcribed by **ElevenLabs Scribe** (`ElevenLabsService.transcribe`),
+  the customer is matched against the loaded Planning data, the next mow is
+  snapped to the next **Tuesday or Thursday** (`MowingSchedule`), added to the
+  shared Plan, and a confirmation is **spoken back with an ElevenLabs voice**
+  (`ElevenLabsService.speak`). The same screen has an "Auto-schedule due lawns"
+  action with an **On device / From sheet** toggle — the sheet path uses a new
+  backend endpoint `?action=autoschedule` (`AutoScheduleService` →
+  `readAutoSchedule` in `Code.gs`) that applies the identical Tue/Thu rule
+  server-side. Setup: ElevenLabs API key (+ optional Voice ID) is entered in
+  **Settings**, stored per-device in `ElevenLabsConfig` (never committed).
+  `NSMicrophoneUsageDescription` added to the build settings.
+  **Requires an Apps Script redeploy** for the `?action=autoschedule` endpoint
+  (the voice/STT/TTS and on-device scheduling work without a redeploy).
+
 
 - [x] Persist signing `DEVELOPMENT_TEAM` so it stops disappearing.
 - [x] Reconcile local/remote `main`.

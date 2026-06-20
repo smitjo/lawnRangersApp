@@ -7,6 +7,8 @@ struct SettingsView: View {
     @State private var urlString: String = BackendConfig.webAppURLString
     @State private var testResult: String?
     @State private var isTesting = false
+    @State private var elevenLabsKey: String = ElevenLabsConfig.apiKey
+    @State private var elevenLabsVoice: String = ElevenLabsConfig.voiceID
 
     var body: some View {
         NavigationStack {
@@ -63,6 +65,21 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    SecureField("ElevenLabs API key", text: $elevenLabsKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.callout)
+                    TextField("Voice ID (optional)", text: $elevenLabsVoice)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.callout)
+                } header: {
+                    Text("Voice (ElevenLabs)")
+                } footer: {
+                    Text("Powers the Planning tab's voice planning (speech-to-text) and spoken confirmations. Get a key at elevenlabs.io → Profile → API Keys. Leave the Voice ID blank to use the default voice.")
+                }
+
+                Section {
                     Toggle("Log errors to sheet", isOn: Binding(
                         get: { DebugConfig.errorLoggingEnabled },
                         set: { DebugConfig.errorLoggingEnabled = $0 }
@@ -82,6 +99,8 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         BackendConfig.overrideURLString = urlString
+                        ElevenLabsConfig.apiKey = elevenLabsKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                        ElevenLabsConfig.voiceID = elevenLabsVoice.trimmingCharacters(in: .whitespacesAndNewlines)
                         dismiss()
                     }
                 }

@@ -42,19 +42,32 @@ final class PlanStore: ObservableObject {
     }
 
     func add(customer: String) async {
+        await add(customer: customer, scheduled: Date(), notes: "")
+    }
+
+    /// Adds a planned job for a specific date/time (used by auto-scheduling and
+    /// voice planning). Optimistic, then mirrored to the sheet.
+    func add(customer: String, scheduled: Date, notes: String) async {
         let id = UUID().uuidString
-        let now = Date()
         // Optimistic: show it right away.
         items.append(PlannedItem(id: id, customer: customer,
-                                 scheduled: now.timeIntervalSince1970 * 1000, notes: "", address: ""))
+                                 scheduled: scheduled.timeIntervalSince1970 * 1000,
+                                 notes: notes, address: ""))
         await SheetSubmitter.submit([
             "type": "planAdd",
             "id": id,
             "customer": customer,
-            "scheduled": ISO8601DateFormatter().string(from: now),
-            "notes": "",
+            "scheduled": ISO8601DateFormatter().string(from: scheduled),
+            "notes": notes,
         ])
         await load()
+    }
+
+    /// True if the customer already has a planned job (case-insensitive), so
+    /// auto-scheduling doesn't create duplicates.
+    func isPlanned(_ customer: String) -> Bool {
+        let key = customer.trimmingCharacters(in: .whitespaces).lowercased()
+        return items.contains { $0.customer.trimmingCharacters(in: .whitespaces).lowercased() == key }
     }
 
     func update(id: String, date: Date, notes: String, address: String) async {

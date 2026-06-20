@@ -15,6 +15,7 @@ struct PlanningView: View {
     @State private var editingPlan: PlannedItem?
     @State private var plannedExpanded = false
     @State private var showingRoute = false
+    @State private var showingVoice = false
 
     /// Most overdue first (never-mowed customers sink to the bottom).
     private var sorted: [PlanningCustomer] {
@@ -36,6 +37,11 @@ struct PlanningView: View {
                         .disabled(plan.items.isEmpty)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
+                        Button { showingVoice = true } label: {
+                            Label("Voice planning", systemImage: "mic.fill")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             weatherRefreshTick += 1   // reload the forecast too
                             Task { await load() }
@@ -51,6 +57,7 @@ struct PlanningView: View {
                 }
                 .sheet(item: $editingPlan) { PlanJobEditor(item: $0) }
                 .sheet(isPresented: $showingRoute) { RouteMapView(items: plan.sorted) }
+                .sheet(isPresented: $showingVoice) { VoicePlanView(customers: customers) }
         }
     }
 

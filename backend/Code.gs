@@ -161,9 +161,10 @@ function doPost(e) {
 // app can mirror the sheet (reflecting adds and deletions).
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'planning';
-  var out = (action === 'entries')   ? readEntries()
-          : (action === 'plan')      ? readPlan()
-          : (action === 'customers') ? readCustomers()
+  var out = (action === 'entries')      ? readEntries()
+          : (action === 'plan')         ? readPlan()
+          : (action === 'customers')    ? readCustomers()
+          : (action === 'autoschedule') ? readAutoSchedule()
           : readPlanning();
 
   var payload = JSON.stringify(out);
@@ -201,6 +202,54 @@ function readPlanning() {
     out.error = String(err);
   }
   return out;
+}
+
+// Auto-schedule: for each Planning customer, recommend the next mow date,
+// snapped to a Tuesday or Thursday (the only days the crew mows). Mirrors the
+// app's on-device MowingSchedule so both paths agree.
+//   • Due later (dueIn > 0)        → next Tue/Thu on/after the due date.
+//   • Overdue / due now / never    → next Tue/Thu from today.
+function readAutoSchedule() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var out = { autoschedule: [] };
+  try {
+    var sh = ss.getSheetByName(PLANNING_TAB);
+    if (sh && sh.getLastRow() >= 2) {
+      var n = sh.getLastRow() - 1;
+      var rows = sh.getRange(2, 1, n, 5).getValues();
+      var today = new Date();
+      rows.forEach(function (r) {
+        if (!r[0]) return;
+        var dsm = asNumber(r[3]);   // days since mowed (null = never)
+        var due = asNumber(r[4]);   // due in days (interval - daysSinceMowed)
+        var offset = (due === null || due < 0) ? 0 : due;
+        var target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+        var rec = nextMowingDay_(target);
+        out.autoschedule.push({
+          customer: str(r[0]),
+          recommended: rec.getTime(),
+          dueIn: (due === null) ? null : Math.round(due),
+          daysSinceMowed: (dsm === null) ? null : Math.round(dsm)
+        });
+      });
+      out.autoschedule.sort(function (a, b) { return (a.recommended || 0) - (b.recommended || 0); });
+    }
+  } catch (err) {
+    out.error = String(err);
+  }
+  return out;
+}
+
+// Next Tuesday or Thursday on/after `date`, at 9:00 AM local
+// (JS getDay(): Sunday = 0 … Tuesday = 2, Thursday = 4).
+function nextMowingDay_(date) {
+  var d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0);
+  for (var i = 0; i < 7; i++) {
+    var day = d.getDay();
+    if (day === 2 || day === 4) return d;
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
 }
 
 function readEntries() {
