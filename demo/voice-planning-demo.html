@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="theme-color" content="#2E7D32" />
+<title>Lawn Rangers — Voice Planning</title>
+<style>
+  :root {
+    --green: #2E7D32;
+    --green-light: #3a9a40;
+    --bg: #000000;
+    --card: #1c1c1e;
+    --card2: #2c2c2e;
+    --text: #ffffff;
+    --muted: #9a9a9e;
+    --line: #38383a;
+    --red: #ff453a;
+    --amber: #e6b800;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none;
+  }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Nav bar */
+  .navbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top));
+    background: rgba(20,20,22,.85); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .navbar .title { font-size: 22px; font-weight: 800; }
+  .iconbtn {
+    background: none; border: none; color: var(--green-light);
+    font-size: 22px; line-height: 1; padding: 6px 8px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .iconbtn.solid {
+    background: var(--green); color: #fff; border-radius: 20px;
+    padding: 8px 14px; font-size: 15px; font-weight: 600;
+  }
+  .navbar .left { width: 30px; color: var(--muted); font-size: 22px; }
+
+  .content { padding: 16px; }
+
+  /* Banner */
+  .banner {
+    background: rgba(46,125,50,.16); border: 1px solid rgba(58,154,64,.4);
+    border-radius: 12px; padding: 11px 13px; font-size: 12.5px; color: #b9e6bd;
+    margin-bottom: 16px; line-height: 1.45;
+  }
+
+  /* Weather strip */
+  .weather { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 6px; }
+  .wday {
+    flex: none; width: 60px; background: var(--card); border-radius: 12px;
+    padding: 8px 6px; text-align: center; border: 1px solid transparent;
+  }
+  .wday.mow { border-color: var(--green-light); }
+  .wday .wd { font-size: 12px; font-weight: 700; }
+  .wday .wt { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .wday .dot { width: 10px; height: 10px; border-radius: 50%; margin: 6px auto 0; }
+  .mowtag { font-size: 10px; color: var(--green-light); font-weight: 700; margin-top: 3px; }
+
+  .section-title { color: var(--muted); font-size: 13px; text-transform: uppercase;
+    letter-spacing: .5px; margin: 20px 4px 8px; }
+
+  /* Planned bar + rows */
+  .planbar {
+    display: flex; align-items: center; gap: 8px; background: var(--card);
+    border-radius: 12px; padding: 13px 14px; margin-bottom: 8px;
+  }
+  .planbar .ph { font-weight: 700; }
+  .planbar .pc { margin-left: auto; color: var(--muted); font-weight: 600; }
+  .planrow {
+    display: flex; align-items: center; gap: 12px; background: var(--card);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+    animation: pop .35s ease;
+  }
+  @keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .planrow .cal { font-size: 20px; }
+  .planrow .pname { font-weight: 700; }
+  .planrow .pwhen { font-size: 12.5px; color: var(--green-light); margin-top: 2px; }
+  .planrow .pnote { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .planrow .del { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+
+  /* Customer rows */
+  .crow { display: flex; align-items: center; gap: 13px; background: var(--card);
+    border-radius: 12px; padding: 12px 12px; margin-bottom: 8px; }
+  .badge {
+    width: 52px; height: 52px; border-radius: 12px; flex: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800;
+  }
+  .badge .n { font-size: 19px; line-height: 1; }
+  .badge .u { font-size: 9px; opacity: .9; }
+  .cinfo { flex: 1; min-width: 0; }
+  .cinfo .cn { font-weight: 700; font-size: 16px; }
+  .cinfo .ci { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .cinfo .cd { font-size: 12px; margin-top: 2px; }
+  .plusbtn { background: none; border: none; color: var(--green-light); font-size: 26px; cursor: pointer; padding: 2px 4px; }
+
+  /* Voice sheet */
+  .sheet {
+    position: fixed; inset: 0; background: var(--bg); z-index: 30;
+    transform: translateY(100%); transition: transform .3s ease;
+    display: flex; flex-direction: column;
+  }
+  .sheet.show { transform: translateY(0); }
+  .sheet .sheet-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top));
+    border-bottom: 1px solid var(--line);
+  }
+  .sheet .sheet-nav .t { font-weight: 700; font-size: 17px; }
+  .sheet .sheet-nav button { background: none; border: none; color: var(--green-light); font-size: 17px; cursor: pointer; padding: 4px; }
+  .sheet .body { overflow-y: auto; padding: 18px 16px 40px; flex: 1; -webkit-overflow-scrolling: touch; }
+
+  .mic-wrap { text-align: center; margin: 6px 0 14px; }
+  .mic {
+    width: 120px; height: 120px; border-radius: 50%; border: none; cursor: pointer;
+    background: var(--green); color: #fff; font-size: 46px;
+    box-shadow: 0 8px 28px rgba(46,125,50,.45);
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: transform .15s ease, background .2s;
+  }
+  .mic:active { transform: scale(.95); }
+  .mic.live { background: var(--red); animation: pulse 1.1s infinite; box-shadow: 0 8px 28px rgba(255,69,58,.5); }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(255,69,58,.45);} 70%{box-shadow:0 0 0 22px rgba(255,69,58,0);} 100%{box-shadow:0 0 0 0 rgba(255,69,58,0);} }
+  .mic-label { margin-top: 12px; font-weight: 700; font-size: 16px; }
+  .mic-hint { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+  .chip { background: var(--card2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 20px; padding: 8px 13px; font-size: 13px; cursor: pointer; }
+  .chip:active { background: var(--card); }
+
+  .textcmd { display: none; margin-top: 14px; }
+  .textcmd input { width: 100%; background: var(--card); border: 1px solid var(--line); color: var(--text);
+    border-radius: 12px; padding: 14px; font-size: 16px; }
+
+  .transcript { background: var(--card); border-radius: 12px; padding: 13px 15px; margin-top: 16px; font-style: italic; }
+  .result { background: rgba(46,125,50,.16); border: 1px solid rgba(58,154,64,.45); color: #cdeccf;
+    border-radius: 12px; padding: 13px 15px; margin-top: 12px; font-size: 14.5px; line-height: 1.45; }
+
+  .auto { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 18px; }
+  .auto h3 { margin: 0 0 4px; font-size: 16px; }
+  .auto p { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .seg { display: flex; background: var(--card2); border-radius: 10px; padding: 3px; margin-bottom: 12px; }
+  .seg button { flex: 1; background: none; border: none; color: var(--muted); padding: 9px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+  .seg button.on { background: var(--green); color: #fff; font-weight: 600; }
+  .bigbtn { width: 100%; background: var(--green); border: none; color: #fff; border-radius: 12px;
+    padding: 15px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .bigbtn:disabled { opacity: .6; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <span class="left">🗺️</span>
+  <span class="title">Planning</span>
+  <button class="iconbtn solid" onclick="openVoice()">🎙️ Voice</button>
+</div>
+
+<div class="content">
+  <div class="banner">
+    <b>Web preview.</b> In the real app the mic uses <b>ElevenLabs</b> (Scribe speech-to-text + a spoken voice). This page uses your browser's built-in voice as a stand-in — and falls back to typing on iPhone if the mic isn't available. Auto-scheduling always picks the next <b>Tuesday or Thursday</b>.
+  </div>
+
+  <div class="section-title">This week</div>
+  <div class="weather" id="weather"></div>
+
+  <div id="plannedWrap"></div>
+
+  <div class="section-title">Customers</div>
+  <div id="customers"></div>
+</div>
+
+<!-- Voice sheet -->
+<div class="sheet" id="voiceSheet">
+  <div class="sheet-nav">
+    <button onclick="closeVoice()">Close</button>
+    <span class="t">Voice Planning</span>
+    <button onclick="closeVoice()">Done</button>
+  </div>
+  <div class="body">
+    <div class="mic-wrap">
+      <button class="mic" id="mic" onclick="micTap()">🎤</button>
+      <div class="mic-label" id="micLabel">Tap to speak</div>
+      <div class="mic-hint">e.g. “plan Johnson” or “schedule everyone”</div>
+
+      <div class="chips" id="chips"></div>
+
+      <div class="textcmd" id="textcmd">
+        <input id="cmdInput" placeholder="Type a command, e.g. plan Johnson" />
+      </div>
+    </div>
+
+    <div class="transcript" id="transcript" style="display:none"></div>
+    <div class="result" id="result" style="display:none"></div>
+
+    <div class="auto">
+      <h3>Auto-schedule due lawns</h3>
+      <p>Schedules every lawn that's due or overdue onto its next Tuesday or Thursday.</p>
+      <div class="seg" id="seg">
+        <button class="on" data-src="device" onclick="setSource('device')">On device</button>
+        <button data-src="sheet" onclick="setSource('sheet')">From sheet</button>
+      </div>
+      <button class="bigbtn" id="autoBtn" onclick="autoScheduleAll()">✨ Auto-schedule due lawns</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- Data (mirrors the app's Planning tab) -----------------------------
+  // dsm = days since last mowed (null = never), interval = mow every N days.
+  const SEED = [
+    { name: "Anderson",     interval: 14, dsm: 19 },
+    { name: "Matthews",     interval: 12, dsm: 16 },
+    { name: "King",         interval: 14, dsm: 14 },
+    { name: "Johnson",      interval: 10, dsm: 9  },
+    { name: "Nancy Patton", interval: 14, dsm: 12 },
+    { name: "Holland",      interval: 14, dsm: 7  },
+    { name: "Beverly",      interval: 21, dsm: 5  },
+    { name: "Harrington",   interval: 14, dsm: 2  },
+    { name: "Eldridge",     interval: 14, dsm: null }
+  ];
+  const STORE = "lawnRangersVoiceDemo";
+
+  let customers = SEED.map(c => ({ ...c, dueIn: c.dsm == null ? null : c.interval - c.dsm }));
+  let planned = load();
+  let source = "device";
+
+  function load() { try { return JSON.parse(localStorage.getItem(STORE)) || []; } catch(e){ return []; } }
+  function save() { localStorage.setItem(STORE, JSON.stringify(planned)); }
+
+  // ---- Tue/Thu scheduling logic (mirrors MowingSchedule.swift) -----------
+  // JS getDay(): Sun=0 … Tue=2, Thu=4.
+  function nextMowingDay(date) {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      if (d.getDay() === 2 || d.getDay() === 4) return d;
+      d.setDate(d.getDate() + 1);
+    }
+    return d;
+  }
+  function recommendedDate(c) {
+    const today = new Date();
+    let target;
+    if (c.dsm == null) target = today;
+    else if (c.dueIn > 0) { target = new Date(); target.setDate(today.getDate() + c.dueIn); }
+    else target = today;
+    return nextMowingDay(target);
+  }
+  function dueCustomers() {
+    return customers
+      .filter(c => c.dsm == null || c.dueIn <= 7)
+      .sort((a, b) => (a.dueIn ?? -9999) - (b.dueIn ?? -9999));
+  }
+  function isPlanned(name) {
+    const k = name.trim().toLowerCase();
+    return planned.some(p => p.customer.trim().toLowerCase() === k);
+  }
+
+  // ---- Colors (mirrors overdueColor / dueText) ---------------------------
+  function badgeColor(c) {
+    if (c.dsm == null) return "#6b7280";
+    const r = c.interval > 0 ? c.dsm / c.interval : 0;
+    if (r < 0.5)  return "#33a64a";
+    if (r < 0.85) return "#8cb733";
+    if (r < 1.0)  return "#d9b310";
+    if (r < 1.5)  return "#e6801a";
+    return "#cc3326";
+  }
+  function dueText(c) {
+    if (c.dsm == null) return { t: "Not mowed yet", red: false };
+    if (c.dueIn < 0)  return { t: "Overdue by " + (-c.dueIn) + " d", red: true };
+    if (c.dueIn === 0) return { t: "Due today", red: true };
+    return { t: "Due in " + c.dueIn + " d", red: false };
+  }
+
+  // ---- Render ------------------------------------------------------------
+  const fmtFull = d => d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  const fmtShort = d => d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+  function renderWeather() {
+    const el = document.getElementById("weather");
+    const today = new Date();
+    let html = "";
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(); d.setDate(today.getDate() + i);
+      const mow = d.getDay() === 2 || d.getDay() === 4;
+      const rain = [5, 0, 30, 10, 60, 5, 15][i];
+      const dot = rain < 5 ? "#33a64a" : rain < 15 ? "#d9b310" : "#cc3326";
+      html += `<div class="wday ${mow ? "mow" : ""}">
+        <div class="wd">${d.toLocaleDateString(undefined,{weekday:"short"})}</div>
+        <div class="wt">${d.getDate()}</div>
+        <div class="dot" style="background:${dot}"></div>
+        ${mow ? '<div class="mowtag">MOW</div>' : ''}
+      </div>`;
+    }
+    el.innerHTML = html;
+  }
+
+  function renderPlanned() {
+    const wrap = document.getElementById("plannedWrap");
+    if (!planned.length) { wrap.innerHTML = ""; return; }
+    const sorted = [...planned].sort((a, b) => a.ts - b.ts);
+    let html = `<div class="section-title">Planned</div>
+      <div class="planbar"><span class="cal">📅</span><span class="ph">Planned</span><span class="pc">${planned.length}</span></div>`;
+    sorted.forEach(p => {
+      html += `<div class="planrow">
+        <span class="cal">📆</span>
+        <div>
+          <div class="pname">${p.customer}</div>
+          <div class="pwhen">${fmtShort(new Date(p.ts))}, 9:00 AM</div>
+          ${p.note ? `<div class="pnote">${p.note}</div>` : ""}
+        </div>
+        <button class="del" onclick="removePlan('${p.id}')">✕</button>
+      </div>`;
+    });
+    wrap.innerHTML = html;
+  }
+
+  function renderCustomers() {
+    const el = document.getElementById("customers");
+    const sorted = [...customers].sort((a, b) => (b.dsm ?? -1) - (a.dsm ?? -1));
+    el.innerHTML = sorted.map(c => {
+      const due = dueText(c);
+      return `<div class="crow">
+        <div class="badge" style="background:${badgeColor(c)}">
+          <span class="n">${c.dsm == null ? "N/A" : c.dsm}</span>
+          ${c.dsm == null ? "" : '<span class="u">days</span>'}
+        </div>
+        <div class="cinfo">
+          <div class="cn">${c.name}</div>
+          <div class="ci">Mow every ${c.interval} days</div>
+          <div class="cd" style="color:${due.red ? "#ff8a82" : "var(--muted)"}">${due.t}</div>
+        </div>
+        <button class="plusbtn" onclick="planOne('${c.name}')" title="Add to plan">＋</button>
+      </div>`;
+    }).join("");
+  }
+
+  function renderAll() { renderWeather(); renderPlanned(); renderCustomers(); }
+
+  // ---- Scheduling actions -----------------------------------------------
+  function addPlan(name, date, note) {
+    planned.push({ id: Date.now() + "-" + Math.random().toString(36).slice(2,6),
+                   customer: name, ts: date.getTime(), note: note || "" });
+    save();
+  }
+  function planOne(name) {
+    const c = customers.find(x => x.name === name);
+    if (!c || isPlanned(name)) { renderAll(); return; }
+    addPlan(name, recommendedDate(c), "");
+    renderAll();
+  }
+  function removePlan(id) { planned = planned.filter(p => p.id !== id); save(); renderAll(); }
+
+  function schedule(targets, note) {
+    const done = [], skipped = [];
+    targets.forEach(c => {
+      if (isPlanned(c.name)) { skipped.push(c.name); return; }
+      const d = recommendedDate(c);
+      addPlan(c.name, d, note);
+      done.push({ name: c.name, date: d });
+    });
+    save(); renderAll();
+    return { done, skipped };
+  }
+  function confirmation({ done, skipped }) {
+    if (!done.length) return skipped.length ? "Those lawns are already planned." : "Nothing was due — no lawns scheduled.";
+    if (done.length === 1) return `Scheduled ${done[0].name} for ${fmtFull(done[0].date)}.`;
+    const names = done.map(d => d.name);
+    const list = names.length <= 3 ? names.join(", ") : names.slice(0,3).join(", ") + " and " + (names.length-3) + " more";
+    return `Scheduled ${done.length} lawns: ${list}.`;
+  }
+
+  // ---- Command handling --------------------------------------------------
+  function handleCommand(text) {
+    showTranscript(text);
+    const lower = text.toLowerCase();
+    const wantsAll = ["all", "everyone", "everything", "every lawn"].some(w => lower.includes(w));
+    const targets = wantsAll ? dueCustomers()
+                             : customers.filter(c => lower.includes(c.name.toLowerCase()));
+    if (!targets.length) {
+      const msg = "I didn't catch a customer name. Try a name like “plan Johnson.”";
+      showResult(msg); speak(msg); return;
+    }
+    const msg = confirmation(schedule(targets, "Auto-scheduled by voice"));
+    showResult(msg); speak(msg);
+  }
+
+  function showTranscript(t) { const e = document.getElementById("transcript"); e.style.display = "block"; e.textContent = "“" + t + "”"; }
+  function showResult(t) { const e = document.getElementById("result"); e.style.display = "block"; e.textContent = t; }
+
+  // ---- Voice in/out (Web Speech API, with iOS fallback) ------------------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recog = null, listening = false;
+
+  function speak(text) {
+    try {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.0; u.pitch = 1.0;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  function micTap() {
+    if (SR) {
+      listening ? stopListening() : startListening();
+    } else {
+      // iOS Safari: no live recognition — submit the typed command.
+      const v = document.getElementById("cmdInput").value.trim();
+      if (v) { handleCommand(v); document.getElementById("cmdInput").value = ""; }
+      else document.getElementById("cmdInput").focus();
+    }
+  }
+
+  function startListening() {
+    recog = new SR();
+    recog.lang = "en-US"; recog.interimResults = false; recog.maxAlternatives = 1;
+    recog.onresult = e => { handleCommand(e.results[0][0].transcript); };
+    recog.onerror = () => { setMic(false, "Couldn't hear that — tap to retry"); };
+    recog.onend = () => setMic(false);
+    try { recog.start(); setMic(true); } catch (e) { setMic(false); }
+  }
+  function stopListening() { try { recog && recog.stop(); } catch (e) {} setMic(false); }
+  function setMic(on, label) {
+    listening = on;
+    document.getElementById("mic").classList.toggle("live", on);
+    document.getElementById("mic").textContent = on ? "■" : "🎤";
+    document.getElementById("micLabel").textContent = label || (on ? "Listening… tap to stop" : "Tap to speak");
+  }
+
+  // ---- Auto-schedule all due (On device / From sheet) --------------------
+  function setSource(s) {
+    source = s;
+    document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("on", b.dataset.src === s));
+  }
+  function autoScheduleAll() {
+    const btn = document.getElementById("autoBtn");
+    const run = () => {
+      const res = schedule(dueCustomers(), source === "sheet" ? "Auto-scheduled (sheet)" : "Auto-scheduled");
+      const msg = confirmation(res);
+      showResult(source === "sheet" ? "From the sheet — " + msg : msg);
+      speak(msg);
+      btn.disabled = false; btn.textContent = "✨ Auto-schedule due lawns";
+    };
+    if (source === "sheet") {
+      // Simulate the backend (?action=autoschedule) round-trip.
+      btn.disabled = true; btn.textContent = "Asking the sheet…";
+      setTimeout(run, 650);
+    } else run();
+  }
+
+  // ---- Sheet open/close --------------------------------------------------
+  function openVoice() {
+    document.getElementById("transcript").style.display = "none";
+    document.getElementById("result").style.display = "none";
+    document.getElementById("voiceSheet").classList.add("show");
+    // Prime speech synthesis on iOS (needs a user gesture).
+    if (window.speechSynthesis) { try { window.speechSynthesis.resume(); } catch (e) {} }
+  }
+  function closeVoice() { document.getElementById("voiceSheet").classList.remove("show"); stopListening && stopListening(); }
+
+  // ---- Build quick-command chips / iOS fallback --------------------------
+  (function setupVoiceUI() {
+    const chips = document.getElementById("chips");
+    const examples = ["plan Johnson", "plan King and Anderson", "schedule everyone"];
+    chips.innerHTML = examples.map(x => `<button class="chip" onclick="handleCommand('${x}')">${x}</button>`).join("");
+    if (!SR) {
+      // No live mic recognition (typical on iOS Safari): show the type box.
+      document.getElementById("textcmd").style.display = "block";
+      document.getElementById("micLabel").textContent = "Type or tap an example";
+      document.getElementById("mic").textContent = "⌨️";
+      document.getElementById("cmdInput").addEventListener("keydown", e => {
+        if (e.key === "Enter") micTap();
+      });
+    }
+  })();
+
+  renderAll();
+</script>
+</body>
+</html>
