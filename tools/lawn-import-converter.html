@@ -65,6 +65,12 @@
     <textarea id="input" placeholder="Timestamp&#9;Where?&#9;Who?&#9;How much?…&#9;Customer paid?&#9;Teammember paid?&#9;Note…&#9;Rate&#9;Grantham&#9;Gresham&#9;Caleb&#9;Oliver&#9;Overhead&#9;Depreciation&#10;5/14/2024 11:13:47&#9;Nancy Patton&#9;Grantham, Caleb, Oliver&#9;Standard&#9;Unpaid&#9;Unpaid&#9;&#9;60&#9;16&#9;&#9;16&#9;16&#9;6&#9;6"></textarea>
     <div id="parseStat" class="stat"></div>
 
+    <details id="dupWrap">
+      <summary>Optional: skip duplicates already in the sheet</summary>
+      <p class="sub" style="margin-top:8px">Paste your current <b>Lawn Log</b> rows here (Timestamp in the first column, Where? in the second). Any incoming row with the same date + customer is flagged as a duplicate.</p>
+      <textarea id="existing" style="min-height:120px" placeholder="Paste existing Lawn Log rows here (optional)…"></textarea>
+    </details>
+
     <details id="mapWrap">
       <summary>Column mapping (auto-detected — adjust if needed)</summary>
       <table class="map">
@@ -79,6 +85,7 @@
     <p class="sub">Tab-separated, in the app's column order. Select the <b>Lawn Log</b> cell <code>A4</code> (or the first empty row) and paste.</p>
     <div class="opts">
       <label><input type="checkbox" id="dropNoDate" checked /> Drop rows with no date in Timestamp</label>
+      <label><input type="checkbox" id="skipDupes" checked /> Skip duplicates (same date + customer)</label>
       <label><input type="checkbox" id="includeHeader" /> Include header row</label>
     </div>
     <textarea id="output" readonly placeholder="Converted rows appear here…"></textarea>
@@ -174,29 +181,61 @@
     });
   }
 
+  // date + customer key for duplicate detection, from a row + its column indices.
+  function keyFrom(ts, where) {
+    return (ts || "").trim().toLowerCase() + "|" + (where || "").trim().toLowerCase();
+  }
+
+  // Keys of rows already in the sheet (pasted reference: col 0 = Timestamp, col 1 = Where?).
+  function existingKeys() {
+    const set = new Set();
+    const text = $("existing").value;
+    if (!text.trim()) return set;
+    text.replace(/\r/g, "").split("\n").forEach(l => {
+      if (!l.trim()) return;
+      const c = splitCells(l);
+      const ts = (c[0] || "").trim(), where = (c[1] || "").trim();
+      if (norm(ts) === "timestamp") return;            // skip a header line
+      if (ts || where) set.add(keyFrom(ts, where));
+    });
+    return set;
+  }
+
   function convert() {
     const dropNoDate = $("dropNoDate").checked;
+    const skipDupes = $("skipDupes").checked;
     const tsCol = mapping[0];
     const whereCol = mapping[1];
 
-    const kept = dataRows.filter(r => {
+    const existing = skipDupes ? existingKeys() : new Set();
+    const seen = new Set();
+    let dupCount = 0;
+    const kept = [];
+
+    for (const r of dataRows) {
       const ts = tsCol >= 0 ? (r[tsCol] || "") : "";
       const where = whereCol >= 0 ? (r[whereCol] || "") : "";
       // Skip summary/blank lines.
-      if (!ts.trim() && !where.trim()) return false;
-      if (dropNoDate && !dateRe.test(ts)) return false;
-      return true;
-    });
+      if (!ts.trim() && !where.trim()) continue;
+      if (dropNoDate && !dateRe.test(ts)) continue;
+
+      if (skipDupes) {
+        const k = keyFrom(ts, where);
+        if (existing.has(k) || seen.has(k)) { dupCount++; continue; }
+        seen.add(k);
+      }
+      kept.push(r);
+    }
 
     const lines = kept.map(r =>
       mapping.map(ci => (ci >= 0 && ci < r.length ? r[ci] : "").trim()).join("\t")
     );
-
     if ($("includeHeader").checked) lines.unshift(TARGETS.join("\t"));
 
     $("output").value = lines.join("\n");
     const n = kept.length;
-    $("outStat").innerHTML = `<b>${n}</b> row${n === 1 ? "" : "s"} ready`;
+    $("outStat").innerHTML = `<b>${n}</b> row${n === 1 ? "" : "s"} ready` +
+      (dupCount ? ` · <span class="warn">${dupCount} duplicate${dupCount === 1 ? "" : "s"} skipped</span>` : "");
   }
 
   function render() {
@@ -221,7 +260,8 @@
   }
 
   $("input").addEventListener("input", parse);
-  ["dropNoDate", "includeHeader"].forEach(id => $(id).addEventListener("change", convert));
+  $("existing").addEventListener("input", convert);
+  ["dropNoDate", "skipDupes", "includeHeader"].forEach(id => $(id).addEventListener("change", convert));
   $("copyBtn").onclick = async () => {
     const out = $("output");
     out.select();
