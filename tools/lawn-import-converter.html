@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lawn Rangers — Import Converter</title>
+<style>
+  :root {
+    --green: #2E7D32; --green-light: #3a9a40; --bg: #0f1011; --panel: #18191b;
+    --card: #1f2123; --text: #f2f2f4; --muted: #9aa0a6; --line: #303236; --amber: #e6b800; --red: #ff6b60;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.45;
+  }
+  header { padding: 18px 22px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 6px 0 0; color: var(--muted); font-size: 13.5px; max-width: 880px; }
+  header code { background: #000; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 22px; align-items: start; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .panel h2 { margin: 0 0 4px; font-size: 14px; }
+  .panel .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+  textarea {
+    width: 100%; min-height: 280px; resize: vertical; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 11px; font: 12.5px/1.5 ui-monospace, Menlo, monospace;
+    white-space: pre; overflow-wrap: normal; overflow-x: auto;
+  }
+  .opts { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; font-size: 13px; color: var(--muted); }
+  .opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .stat { font-size: 13px; margin: 8px 0; }
+  .stat b { color: var(--green-light); }
+  .warn { color: var(--amber); }
+  .err { color: var(--red); }
+  button {
+    background: var(--green); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 15px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); font-weight: 500; }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  table.map { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
+  table.map th, table.map td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.map th { color: var(--muted); font-weight: 600; }
+  table.map td:first-child { color: var(--text); white-space: nowrap; max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-size: 12.5px; width: 100%; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--green-light); font-size: 13px; }
+  .full { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lawn Rangers — Import Converter</h1>
+  <p>Paste a block of lawns copied from a spreadsheet on the left. This reorders the columns into the app's <b>Lawn Log</b> layout and hands back clean, tab-separated rows to paste into the sheet (starting at the first empty data row, <code>A4</code>). Copy cells <b>from the spreadsheet</b> so they're tab-separated — that keeps commas inside "Who?" intact.</p>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>1 · Paste your block</h2>
+    <p class="sub">Include the header row if you have one — it's auto-detected and used to map columns. Summary rows (Total Earned / Unpaid) are dropped automatically.</p>
+    <textarea id="input" placeholder="Timestamp&#9;Where?&#9;Who?&#9;How much?…&#9;Customer paid?&#9;Teammember paid?&#9;Note…&#9;Rate&#9;Grantham&#9;Gresham&#9;Caleb&#9;Oliver&#9;Overhead&#9;Depreciation&#10;5/14/2024 11:13:47&#9;Nancy Patton&#9;Grantham, Caleb, Oliver&#9;Standard&#9;Unpaid&#9;Unpaid&#9;&#9;60&#9;16&#9;&#9;16&#9;16&#9;6&#9;6"></textarea>
+    <div id="parseStat" class="stat"></div>
+
+    <details id="dupWrap">
+      <summary>Optional: skip duplicates already in the sheet</summary>
+      <p class="sub" style="margin-top:8px">Paste your current <b>Lawn Log</b> rows here (Timestamp in the first column, Where? in the second). Any incoming row with the same date + customer is flagged as a duplicate.</p>
+      <textarea id="existing" style="min-height:120px" placeholder="Paste existing Lawn Log rows here (optional)…"></textarea>
+    </details>
+
+    <details id="mapWrap">
+      <summary>Column mapping (auto-detected — adjust if needed)</summary>
+      <table class="map">
+        <thead><tr><th>App sheet column</th><th>From your data</th></tr></thead>
+        <tbody id="mapBody"></tbody>
+      </table>
+    </details>
+  </div>
+
+  <div class="panel">
+    <h2>2 · Copy into the sheet</h2>
+    <p class="sub">Tab-separated, in the app's column order. Select the <b>Lawn Log</b> cell <code>A4</code> (or the first empty row) and paste.</p>
+    <div class="opts">
+      <label><input type="checkbox" id="dropNoDate" checked /> Drop rows with no date in Timestamp</label>
+      <label><input type="checkbox" id="skipDupes" checked /> Skip duplicates (same date + customer)</label>
+      <label><input type="checkbox" id="includeHeader" /> Include header row</label>
+    </div>
+    <textarea id="output" readonly placeholder="Converted rows appear here…"></textarea>
+    <div class="row">
+      <button id="copyBtn">Copy output</button>
+      <button class="ghost" id="clearBtn">Clear</button>
+      <span id="outStat" class="stat"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // The app's Lawn Log columns, in order (must match backend Code.gs LAWN_HEADERS).
+  const TARGETS = [
+    "Timestamp", "Where?", "Who?", "How much? Enter 'Standard' or the actual rate.",
+    "Customer paid?", "Teammember paid?", "Note. Include Address & Phone for new customers",
+    "Rate", "Grantham", "Gresham", "Caleb", "Oliver", "Overhead", "Depreciation"
+  ];
+  // Token used to auto-match a source header to each target (normalized, lowercased).
+  const MATCH = [
+    "timestamp", "where", "who", "howmuch", "customerpaid", "teammemberpaid", "note",
+    "rate", "grantham", "gresham", "caleb", "oliver", "overhead", "depreciation"
+  ];
+
+  const $ = id => document.getElementById(id);
+  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const splitCells = line => line.includes("\t") ? line.split("\t") : line.split(",");
+  const dateRe = /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/;
+
+  let mapping = [];      // mapping[targetIndex] = source column index, or -1
+  let headerCells = [];  // detected source header row
+  let dataRows = [];     // rows after the header
+  let hadHeader = false;
+
+  function parse() {
+    const text = $("input").value;
+    const lines = text.replace(/\r/g, "").split("\n").filter(l => l.trim().length > 0);
+    if (!lines.length) { headerCells = []; dataRows = []; hadHeader = false; render(); return; }
+
+    const rows = lines.map(splitCells);
+
+    // Detect a header row: the first row whose cells include "Timestamp" or "Where".
+    let headerIdx = rows.findIndex(r => r.some(c => {
+      const n = norm(c); return n === "timestamp" || n === "where" || n.startsWith("howmuch");
+    }));
+    hadHeader = headerIdx !== -1;
+    if (hadHeader) {
+      headerCells = rows[headerIdx].map(c => c.trim());
+      dataRows = rows.slice(headerIdx + 1);
+    } else {
+      headerCells = [];                 // no header → map by position
+      dataRows = rows;
+    }
+
+    autoMap();
+    render();
+  }
+
+  function autoMap() {
+    mapping = MATCH.map((key, ti) => {
+      if (!hadHeader) return ti < maxCols() ? ti : -1;     // positional
+      // Best header match: exact normalized, else startsWith, else contains.
+      const normed = headerCells.map(norm);
+      let i = normed.indexOf(key);
+      if (i === -1) i = normed.findIndex(n => n.startsWith(key) || key.startsWith(n) && n.length > 2);
+      if (i === -1) i = normed.findIndex(n => n.includes(key));
+      return i;
+    });
+  }
+
+  function maxCols() {
+    return Math.max(headerCells.length, ...dataRows.map(r => r.length), 0);
+  }
+
+  function sourceOptions(selected) {
+    const cols = maxCols();
+    let opts = `<option value="-1"${selected === -1 ? " selected" : ""}>— blank —</option>`;
+    for (let i = 0; i < cols; i++) {
+      const label = hadHeader && headerCells[i] ? headerCells[i] : `Column ${i + 1}`;
+      opts += `<option value="${i}"${selected === i ? " selected" : ""}>${escapeHtml(label)}</option>`;
+    }
+    return opts;
+  }
+
+  function renderMapping() {
+    const body = $("mapBody");
+    body.innerHTML = TARGETS.map((t, ti) =>
+      `<tr><td title="${escapeHtml(t)}">${escapeHtml(t)}</td>
+       <td><select data-ti="${ti}">${sourceOptions(mapping[ti])}</select></td></tr>`
+    ).join("");
+    body.querySelectorAll("select").forEach(sel => {
+      sel.onchange = () => { mapping[+sel.dataset.ti] = +sel.value; convert(); };
+    });
+  }
+
+  // date + customer key for duplicate detection, from a row + its column indices.
+  function keyFrom(ts, where) {
+    return (ts || "").trim().toLowerCase() + "|" + (where || "").trim().toLowerCase();
+  }
+
+  // Keys of rows already in the sheet (pasted reference: col 0 = Timestamp, col 1 = Where?).
+  function existingKeys() {
+    const set = new Set();
+    const text = $("existing").value;
+    if (!text.trim()) return set;
+    text.replace(/\r/g, "").split("\n").forEach(l => {
+      if (!l.trim()) return;
+      const c = splitCells(l);
+      const ts = (c[0] || "").trim(), where = (c[1] || "").trim();
+      if (norm(ts) === "timestamp") return;            // skip a header line
+      if (ts || where) set.add(keyFrom(ts, where));
+    });
+    return set;
+  }
+
+  function convert() {
+    const dropNoDate = $("dropNoDate").checked;
+    const skipDupes = $("skipDupes").checked;
+    const tsCol = mapping[0];
+    const whereCol = mapping[1];
+
+    const existing = skipDupes ? existingKeys() : new Set();
+    const seen = new Set();
+    let dupCount = 0;
+    const kept = [];
+
+    for (const r of dataRows) {
+      const ts = tsCol >= 0 ? (r[tsCol] || "") : "";
+      const where = whereCol >= 0 ? (r[whereCol] || "") : "";
+      // Skip summary/blank lines.
+      if (!ts.trim() && !where.trim()) continue;
+      if (dropNoDate && !dateRe.test(ts)) continue;
+
+      if (skipDupes) {
+        const k = keyFrom(ts, where);
+        if (existing.has(k) || seen.has(k)) { dupCount++; continue; }
+        seen.add(k);
+      }
+      kept.push(r);
+    }
+
+    const lines = kept.map(r =>
+      mapping.map(ci => (ci >= 0 && ci < r.length ? r[ci] : "").trim()).join("\t")
+    );
+    if ($("includeHeader").checked) lines.unshift(TARGETS.join("\t"));
+
+    $("output").value = lines.join("\n");
+    const n = kept.length;
+    $("outStat").innerHTML = `<b>${n}</b> row${n === 1 ? "" : "s"} ready` +
+      (dupCount ? ` · <span class="warn">${dupCount} duplicate${dupCount === 1 ? "" : "s"} skipped</span>` : "");
+  }
+
+  function render() {
+    const total = dataRows.length;
+    let msg = "";
+    if (!total) {
+      msg = '<span class="muted">Paste a block above to begin.</span>';
+    } else {
+      const tabbed = $("input").value.includes("\t");
+      msg = `Detected <b>${total}</b> data row${total === 1 ? "" : "s"}` +
+            (hadHeader ? ` and a header row.` : ` (no header — mapping by position).`);
+      if (!tabbed) msg += ` <span class="warn">No tabs found — copy cells from the spreadsheet so columns split correctly (commas in "Who?" will break otherwise).</span>`;
+    }
+    $("parseStat").innerHTML = msg;
+    if (total) $("mapWrap").open = true;
+    renderMapping();
+    convert();
+  }
+
+  function escapeHtml(s) {
+    return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+
+  $("input").addEventListener("input", parse);
+  $("existing").addEventListener("input", convert);
+  ["dropNoDate", "skipDupes", "includeHeader"].forEach(id => $(id).addEventListener("change", convert));
+  $("copyBtn").onclick = async () => {
+    const out = $("output");
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); }
+    catch (e) { document.execCommand("copy"); }
+    $("copyBtn").textContent = "Copied!";
+    setTimeout(() => ($("copyBtn").textContent = "Copy output"), 1200);
+  };
+  $("clearBtn").onclick = () => { $("input").value = ""; parse(); };
+
+  parse();
+</script>
+</body>
+</html>
