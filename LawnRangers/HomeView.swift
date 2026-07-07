@@ -62,7 +62,7 @@ struct HomeView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames) }
+                .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames, recentLawns: lawns) }
                 .sheet(isPresented: $showingLogExpense) { LogExpenseView() }
                 .sheet(isPresented: $showingAddCustomer) { AddCustomerView() }
                 .sheet(item: $planningToLog, onDismiss: {
@@ -72,6 +72,7 @@ struct HomeView: View {
                     }
                 }) { job in
                     LogLawnView(knownCustomers: customerNames,
+                                recentLawns: lawns,
                                 initialCustomer: job.customer,
                                 onComplete: { Task { await plan.remove(id: job.id) } })
                 }

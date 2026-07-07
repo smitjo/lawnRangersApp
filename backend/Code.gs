@@ -156,6 +156,13 @@ function doPost(e) {
         data.address || '',
         data.mowEvery || 14
       ]]);
+      // Phone + Notes live in H/I (past the formula columns E–G so nothing
+      // shifts). Create the headers on first use.
+      if (!cs.getRange(1, 8).getValue()) {
+        cs.getRange(1, 8, 1, 2).setValues([['Phone', 'Notes']])
+          .setFontWeight('bold').setBackground('#b7a7e0').setFontColor('#000000');
+      }
+      cs.getRange(blankRow, 8, 1, 2).setValues([[data.phone || '', data.notes || '']]);
       return json({ result: 'success' });
     } else if (data.type === 'expense') {
       var ex = ss.getSheetByName(EXPENSE_TAB);
@@ -426,13 +433,15 @@ function readCustomers() {
   try {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CUSTOMERS_TAB);
     if (sh && sh.getLastRow() >= 2) {
-      var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
+      var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
       rows.forEach(function (r) {
         if (!r[0]) return;
         out.customers.push({
           customer: str(r[0]),
           rate: asNumber(r[1]),
-          address: str(r[2])
+          address: str(r[2]),
+          phone: str(r[7]),
+          notes: str(r[8])
         });
       });
     }

@@ -16,6 +16,10 @@ struct LogLawnView: View {
     /// the "Where?" dropdown reflects customers already in use across the team.
     var knownCustomers: [String] = []
 
+    /// Recent lawns from the live sheet, used to warn when the same customer is
+    /// logged twice on the same day (the warning can be bypassed).
+    var recentLawns: [SheetLawn] = []
+
     /// Pre-selects this customer in "Where?" (used when starting from a planned job).
     var initialCustomer: String? = nil
     /// Called after a successful submit (e.g. to clear the originating planned job).
@@ -48,6 +52,7 @@ struct LogLawnView: View {
 
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+    @State private var showingDuplicateWarning = false
     @FocusState private var whereCustomFocused: Bool
     @FocusState private var whoOtherFocused: Bool
 
@@ -196,6 +201,12 @@ struct LogLawnView: View {
                 }
             }
             .onAppear { prefillIfNeeded() }
+            .alert("Already logged today", isPresented: $showingDuplicateWarning) {
+                Button("Log Anyway") { performSave() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("\(resolvedWhere) already has a lawn logged today. Log another?")
+            }
         }
     }
 
@@ -389,7 +400,31 @@ struct LogLawnView: View {
 
     // MARK: - Save
 
+    /// True when a lawn for the chosen customer was already logged today
+    /// (matched case/space-insensitively against the live sheet data).
+    private var isDuplicateToday: Bool {
+        let target = resolvedWhere.lowercased()
+        guard !target.isEmpty else { return false }
+        return recentLawns.contains { lawn in
+            guard let ts = lawn.ts,
+                  let name = lawn.whereLocation?
+                      .trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                  name == target
+            else { return false }
+            return Calendar.current.isDateInToday(Date(timeIntervalSince1970: ts / 1000))
+        }
+    }
+
     private func save() {
+        // Same-day duplicate guard (new entries only): warn once, allow bypass.
+        if editingLawn == nil && isDuplicateToday {
+            showingDuplicateWarning = true
+            return
+        }
+        performSave()
+    }
+
+    private func performSave() {
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let payload: [String: Any]

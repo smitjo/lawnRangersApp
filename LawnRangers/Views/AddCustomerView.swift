@@ -9,6 +9,8 @@ struct AddCustomerView: View {
     @State private var name: String = ""
     @State private var rate: String = ""
     @State private var address: String = ""
+    @State private var phone: String = ""
+    @State private var notes: String = ""
     @State private var mowEvery: String = ""
 
     @State private var isSubmitting = false
@@ -62,6 +64,22 @@ struct AddCustomerView: View {
                         Text("Used by the Route map to plot this customer's stop.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+
+                    // Phone
+                    fieldCard(icon: "phone.fill", title: "Phone", required: false) {
+                        inputField {
+                            TextField("Phone number", text: $phone)
+                                .keyboardType(.phonePad)
+                        }
+                    }
+
+                    // Notes
+                    fieldCard(icon: "note.text", title: "Notes", required: false) {
+                        inputField {
+                            TextField("Gate code, dog, billing quirks…", text: $notes, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
                     }
 
                     // Mow interval
@@ -176,6 +194,8 @@ struct AddCustomerView: View {
             "type": "customerAdd",
             "customer": name.trimmingCharacters(in: .whitespacesAndNewlines),
             "address": address.trimmingCharacters(in: .whitespacesAndNewlines),
+            "phone": phone.trimmingCharacters(in: .whitespacesAndNewlines),
+            "notes": notes.trimmingCharacters(in: .whitespacesAndNewlines),
             "mowEvery": resolvedMowEvery,
         ]
         // Send the rate as a number so the sheet stores it numerically.

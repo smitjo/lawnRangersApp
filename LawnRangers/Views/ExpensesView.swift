@@ -55,7 +55,7 @@ struct ExpensesView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames) }
+                .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames, recentLawns: lawns) }
                 .sheet(isPresented: $showingLogExpense) { LogExpenseView() }
                 .sheet(isPresented: $showingAddCustomer) { AddCustomerView() }
                 .sheet(isPresented: $showingSettings) { SettingsView() }
