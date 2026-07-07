@@ -1,10 +1,11 @@
 import Foundation
-import SwiftData
 
 /// A single "Log an Expense" entry — mirrors the "Overhead Expense" Google Form.
 /// The timestamp is captured automatically at save time.
-@Model
-final class Expense {
+///
+/// Not persisted on the device — this only shapes the JSON posted to the sheet,
+/// which is the single source of truth.
+struct Expense {
     /// Timestamp (auto).
     var timestamp: Date
     /// "Expenses" — what was purchased (required).

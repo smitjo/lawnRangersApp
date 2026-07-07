@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// Planning tab — each customer, how many days since their lawn was mowed
 /// (computed from logged lawns), and how often it should be mowed. Color-coded
@@ -224,5 +223,4 @@ struct PlanningView: View {
 
 #Preview {
     PlanningView()
-        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }

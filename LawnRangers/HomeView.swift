@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 struct HomeView: View {
     @State private var lawns: [SheetLawn] = []
@@ -293,5 +292,4 @@ struct HomeView: View {
 
 #Preview {
     HomeView()
-        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }

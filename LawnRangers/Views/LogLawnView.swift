@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// "Log a Lawn" — mirrors the "Lawn Mowing Wizard - 2025 Daily Log" form.
 /// The look is a modern card layout; the questions, fields, answers, and the data
@@ -25,8 +24,9 @@ struct LogLawnView: View {
     /// Called after a successful submit (e.g. to clear the originating planned job).
     var onComplete: (() -> Void)? = nil
 
-    /// Previously entered locations, used to grow the "Where?" dropdown.
-    @Query(sort: \LawnLog.timestamp, order: .reverse) private var pastLogs: [LawnLog]
+    /// Customer names fetched live from the sheet's Customers tab, so the
+    /// dropdown always reflects the real roster (including just-added customers).
+    @State private var sheetCustomers: [String] = []
 
     // Q1 — Where?
     private static let otherTag = "__other__"
@@ -58,10 +58,9 @@ struct LogLawnView: View {
 
     private let teamMembers = ["Grantham", "Gresham", "Caleb", "Oliver"]
 
-    /// Seed customers ∪ previously entered locations, sorted & de-duplicated.
+    /// Customers tab ∪ names on logged lawns — all from the sheet, no local data.
     private var allCustomers: [String] {
-        let used = pastLogs.map(\.whereLocation).filter { !$0.isEmpty }
-        return Array(Set(CustomerDirectory.seed + used + knownCustomers)).sorted()
+        Array(Set(sheetCustomers + knownCustomers)).sorted()
     }
 
     private var resolvedWhere: String {
@@ -201,6 +200,13 @@ struct LogLawnView: View {
                 }
             }
             .onAppear { prefillIfNeeded() }
+            .task {
+                // Pull the roster from the sheet's Customers tab (best effort —
+                // the dropdown still has the names off logged lawns meanwhile).
+                if let customers = try? await CustomerService.fetch() {
+                    sheetCustomers = customers.map(\.customer).filter { !$0.isEmpty }
+                }
+            }
             .alert("Already logged today", isPresented: $showingDuplicateWarning) {
                 Button("Log Anyway") { performSave() }
                 Button("Cancel", role: .cancel) {}
@@ -475,5 +481,4 @@ struct LogLawnView: View {
 
 #Preview {
     LogLawnView()
-        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }

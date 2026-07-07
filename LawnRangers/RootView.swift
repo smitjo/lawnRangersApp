@@ -25,5 +25,4 @@ struct RootView: View {
 
 #Preview {
     RootView()
-        .modelContainer(for: [LawnLog.self, Expense.self], inMemory: true)
 }

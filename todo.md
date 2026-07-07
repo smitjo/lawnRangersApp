@@ -50,9 +50,10 @@ Built 2026-06-20, then wound back off `main`. Archived on the GitHub branch
   Prerequisite for the payment feature.
 - [ ] **One-tap "Request payment"** — Venmo/Zelle deep link pre-filled with the
   customer + Unpaid amount. After money-aware lands.
-- [ ] **Reliable-save / offline queue** — save locally first and resync on
-  reconnect (with a "pending" badge). Decide: keep SwiftData or drop it, and fix
-  the README/DOCUMENTATION "saved locally first" claim.
+- [ ] **Offline queue (only if ever wanted)** — DECIDED 2026-07-07: the sheet is
+  the single source of truth; SwiftData and all local data were removed, and the
+  app requires internet by design. Revisit only if offline logging becomes a
+  real need in the field.
 - [ ] **Optimistic insert** + drop the reload sleep; **auto-refresh on foreground**.
 - [ ] **Search** lawns by customer/date across all history (and reuse for Expenses).
 
@@ -76,8 +77,9 @@ Built 2026-06-20, then wound back off `main`. Archived on the GitHub branch
   match), exact-match the teammate-split REGEXMATCH, optional LockService guard.
 
 ## Cleanup
-- [ ] **Remove dead code** — the unused `PlannedJob` SwiftData model (+ its schema
-  and preview refs); drop the SwiftData container if local persistence is abandoned.
+- [x] **Remove dead code** — done 2026-07-07: `PlannedJob`, `CustomerDirectory`
+  seed list, the SwiftData container, and all local persistence removed; the
+  sheet is the only store.
 - [ ] **Shared form components** — the two log forms duplicate the card-style
   helpers; factor them out.
 - [ ] **App icon** — drop the real 1024×1024 lasso PNG into the AppIcon well

@@ -25,5 +25,4 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
-        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }

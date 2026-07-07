@@ -1,13 +1,14 @@
 import Foundation
-import SwiftData
 
 /// A single "Log a Lawn" entry — mirrors the "Lawn Mowing Wizard - 2025 Daily Log"
 /// Google Form. Field order matches the sheet columns A–G; the timestamp is
 /// captured automatically at save time (column A). Columns H onward in the sheet
 /// (Rate, per-person splits, Overhead, Depreciation) are spreadsheet formulas,
 /// not inputs, so they are not part of this model.
-@Model
-final class LawnLog {
+///
+/// Not persisted on the device — this only shapes the JSON posted to the sheet,
+/// which is the single source of truth.
+struct LawnLog {
     /// Column A — Timestamp (auto).
     var timestamp: Date
     /// Column B — "Where?" (customer / location).

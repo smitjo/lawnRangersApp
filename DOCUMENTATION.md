@@ -13,12 +13,14 @@ Google Forms with native entry screens:
 - **Log a Lawn** — a copy of the *Lawn Mowing Wizard - 2025 Daily Log* form.
 - **Log an Expense** — a copy of the *Overhead Expense* form.
 
-Entries are saved on-device with SwiftData and, when a backend URL is configured,
-also posted to a Google Apps Script Web App that appends them to a spreadsheet.
+The Google Sheet is the single source of truth: entries are posted to a Google
+Apps Script Web App that appends them to the spreadsheet, and every list in the
+app reads live from it. Nothing is stored on the device, so an internet
+connection is required to log or view entries.
 
 - **Platform:** iOS 18.6+, Xcode 16+
 - **UI:** SwiftUI, forced dark mode
-- **Persistence:** SwiftData (local), Google Sheets (remote, optional)
+- **Persistence:** Google Sheets only (no local storage)
 - **Bundle id:** `com.lawnrangers.LawnRangers`
 
 ---
@@ -49,7 +51,7 @@ On launch `RootView` shows `SplashView` for ~1.8 seconds, then fades to
 ### App / shell
 | File | Responsibility |
 |---|---|
-| `LawnRangers/LawnRangersApp.swift` | `@main` entry. Builds the SwiftData `ModelContainer` for `LawnLog` + `Expense`, hosts `RootView`, forces dark mode via `.preferredColorScheme(.dark)`. |
+| `LawnRangers/LawnRangersApp.swift` | `@main` entry. Hosts `RootView`, forces dark mode via `.preferredColorScheme(.dark)`. |
 | `LawnRangers/RootView.swift` | Drives the splash → home transition with a `Task`-based delay. |
 | `LawnRangers/Views/SplashView.swift` | Brand splash: a lasso motif + "Lawn Rangers" on a green gradient, with a row of grass (`GrassView`, a `Canvas`) along the bottom — the lasso taming the grass. Defines the `Color.lawnGreen` extension (`#2E7D32`). |
 | `LawnRangers/MainTabView.swift` | Tab bar hosting the **Lawns** (`HomeView`) and **Planning** (`PlanningView`) tabs. |
@@ -118,9 +120,10 @@ Mirrors the Google Form exactly; the timestamp is captured automatically.
 Lawn payloads also include `"type": "lawn"`. Expense payloads use
 `"type": "expense"` with keys `expenses`, `amount`, `comment`.
 
-Submission is best-effort: the local SwiftData copy is always written first;
-`SheetSubmitter.submit(_:)` then POSTs and silently returns on failure or when
-no URL is configured.
+Submission goes straight to the sheet: `SheetSubmitter.submit(_:)` POSTs the
+entry, checks both the HTTP status and the `{result:"error"}` body Apps Script
+uses for failures, and the form only dismisses on success — on any failure it
+stays open with an error so the entry isn't lost. There is no local copy.
 
 ---
 

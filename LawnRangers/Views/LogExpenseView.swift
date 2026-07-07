@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 /// "Log an Expense" — mirrors the "Overhead Expense" form. The look matches the
 /// modern Log-a-Lawn card style; the fields and submitted data are unchanged.
@@ -217,5 +216,4 @@ struct LogExpenseView: View {
 
 #Preview {
     LogExpenseView()
-        .modelContainer(for: [LawnLog.self, Expense.self, PlannedJob.self], inMemory: true)
 }

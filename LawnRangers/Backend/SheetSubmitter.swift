@@ -1,11 +1,8 @@
 import Foundation
 
-/// Best-effort submission of an entry to the Google Sheets backend.
-///
-/// Entries are always saved locally first; this posts a copy to the configured
-/// Apps Script Web App. If no endpoint is configured (or the request fails),
-/// it returns quietly — the local copy is the source of truth and could later
-/// be re-synced.
+/// Submits an entry to the Google Sheets backend — the app's single source of
+/// truth. Nothing is stored on the device: if the POST fails (offline, bad URL),
+/// the caller shows an error and the form stays open so the entry isn't lost.
 enum SheetSubmitter {
     enum SubmitResult {
         case notConfigured
