@@ -16,6 +16,32 @@
 - [ ] **Route polish** — optimize stop order (nearest-neighbor); option to start
   from current location.
 
+## Voice planning + Tue/Thu auto-scheduling (BUILT — archived, reintegrate later)
+Built 2026-06-20, then wound back off `main`. Archived on the GitHub branch
+**`voice-features-june-20`** — restore from there, don't rebuild
+(`git fetch origin` then `git checkout voice-features-june-20`).
+- [ ] **Speak to plan** — mic button on the Planning tab (`VoicePlanView`): say
+  "plan Johnson" or "schedule everyone"; **ElevenLabs Scribe** transcribes, the
+  customer is matched, the mow is booked and added to the shared plan, and the
+  confirmation is **spoken back** in an ElevenLabs voice.
+- [ ] **Tue/Thu auto-scheduling** — dates snap to the next Tue/Thu; an
+  "Auto-schedule due lawns" button (On-device / From-sheet toggle) does it in bulk.
+  Both voice and the From-sheet button book the **soonest Tue/Thu from today**.
+- [ ] **To make it run (the gotchas):** ElevenLabs key in Apps Script **Script
+  Properties** (`ELEVENLABS_API_KEY`, optional `ELEVENLABS_VOICE_ID`), server-side
+  only; **authorize the `script.external_request` scope** by running any function
+  in the Apps Script editor and clicking Allow — redeploying alone does NOT grant
+  it (that was the "no permission to call UrlFetchApp.fetch" error);
+  `NSMicrophoneUsageDescription` build-setting string + a backend redeploy.
+- [ ] **Bundled on that branch (separable):** the Customers-tab merge (folds the
+  "Planning" tab into "Customers" — one row per customer with rate + address +
+  mow-cycle — and renames "Plan" → "Job Queue"). The `RouteMapView` bug fixes
+  (geocoder rate-limit throttle + retry, case/space-insensitive address match) were
+  in a local stash and may need re-doing.
+- [ ] **Sanity-check on reintegration:** the From-sheet button schedules *every*
+  customer (not just overdue) onto the next mow day; voice name-matching is
+  whole-name `contains`, so "Johnson" won't match a sheet name "Bob Johnson."
+
 ## Lawns & money
 - [ ] **Make the app money-aware (high value).** `readEntries` returns only 7 of
   14 columns — it drops Rate / per-teammate splits / Overhead / Unpaid that the
