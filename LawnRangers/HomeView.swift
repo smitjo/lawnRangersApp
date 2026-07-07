@@ -8,6 +8,7 @@ struct HomeView: View {
 
     @State private var showingLogLawn = false
     @State private var showingLogExpense = false
+    @State private var showingAddCustomer = false
     @State private var showingSettings = false
     /// When true, the list shows every lawn instead of the limited recent view.
     @State private var showAll = false
@@ -53,6 +54,9 @@ struct HomeView: View {
                             Button { showingLogExpense = true } label: {
                                 Label("Log an Expense", systemImage: "dollarsign.circle")
                             }
+                            Button { showingAddCustomer = true } label: {
+                                Label("Add a Customer", systemImage: "person.badge.plus")
+                            }
                         } label: {
                             Image(systemName: "plus").accessibilityLabel("Add entry")
                         }
@@ -60,6 +64,7 @@ struct HomeView: View {
                 }
                 .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames) }
                 .sheet(isPresented: $showingLogExpense) { LogExpenseView() }
+                .sheet(isPresented: $showingAddCustomer) { AddCustomerView() }
                 .sheet(item: $planningToLog, onDismiss: {
                     Task {
                         try? await Task.sleep(for: .seconds(0.4))

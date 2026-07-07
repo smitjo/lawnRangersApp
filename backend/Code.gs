@@ -35,10 +35,9 @@
 // ── Tab names ───────────────────────────────────────────────────────────────
 var LAWN_TAB = 'Lawn Log';
 var EXPENSE_TAB = 'Overhead Expense';
-var CUSTOMERS_TAB = 'Customers';   // customer → Standard Rate + Address (was "Rates")
-var PLANNING_TAB = 'Planning';          // built by setupSpreadsheet; read by the app's Planning tab
+var CUSTOMERS_TAB = 'Customers';   // one row per customer: Rate, Address + mow-cycle tracking (the old "Planning" tab is merged in)
 var ERROR_TAB = 'Errors';               // created on demand when the app's debug error logging is on
-var PLAN_TAB = 'Plan';                  // the shared planning backlog; created on demand
+var PLAN_TAB = 'Job Queue';             // the shared job backlog (was the "Plan" tab); created on demand
 
 // Lawn tab layout
 var HEADER_ROW = 3;        // row 1 = Total Earned, row 2 = Unpaid amount, row 3 = headers
@@ -131,6 +130,33 @@ function doPost(e) {
       var drow = planFindRow_(ps3, data.id);
       if (drow !== -1) ps3.deleteRow(drow);
       return json({ result: 'success' });
+    } else if (data.type === 'customerAdd') {
+      // Add a customer to the Customers tab (name, rate, address, mow interval).
+      var cs = ss.getSheetByName(CUSTOMERS_TAB);
+      if (!cs) throw new Error('Tab not found: ' + CUSTOMERS_TAB + ' (run setupSpreadsheet first)');
+      var cname = String(data.customer || '').trim();
+      if (!cname) throw new Error('Customer name is required.');
+      // Scan column A: reject duplicates (case-insensitive) and find the first
+      // blank row. (The tab has formula columns pre-filled down to row 300, so
+      // appendRow would land BELOW them — write into the first empty A instead.)
+      var lastA = cs.getLastRow();
+      var cnames = lastA >= 2 ? cs.getRange(2, 1, lastA - 1, 1).getValues() : [];
+      var blankRow = -1;
+      for (var ci = 0; ci < cnames.length; ci++) {
+        var cell = String(cnames[ci][0]).trim();
+        if (cell && cell.toLowerCase() === cname.toLowerCase()) {
+          throw new Error('Customer "' + cell + '" already exists.');
+        }
+        if (!cell && blankRow === -1) blankRow = ci + 2;
+      }
+      if (blankRow === -1) blankRow = lastA + 1;
+      cs.getRange(blankRow, 1, 1, 4).setValues([[
+        cname,
+        (data.rate === 0 || data.rate) ? data.rate : '',
+        data.address || '',
+        data.mowEvery || 14
+      ]]);
+      return json({ result: 'success' });
     } else if (data.type === 'expense') {
       var ex = ss.getSheetByName(EXPENSE_TAB);
       if (!ex) throw new Error('Tab not found: ' + EXPENSE_TAB + ' (run setupSpreadsheet first)');
@@ -179,19 +205,19 @@ function readPlanning() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var out = { planning: [] };
   try {
-    var sh = ss.getSheetByName(PLANNING_TAB);
+    var sh = ss.getSheetByName(CUSTOMERS_TAB);
     if (sh && sh.getLastRow() >= 2) {
       var n = sh.getLastRow() - 1;
-      var rows = sh.getRange(2, 1, n, 5).getValues();
+      var rows = sh.getRange(2, 1, n, 7).getValues();   // A customer … G due in
       var tz = ss.getSpreadsheetTimeZone();
       rows.forEach(function (r) {
         if (!r[0]) return;
-        var dsm = asNumber(r[3]);
-        var due = asNumber(r[4]);
+        var dsm = asNumber(r[5]);
+        var due = asNumber(r[6]);
         out.planning.push({
           customer: str(r[0]),
-          interval: asNumber(r[1]),
-          lastMowed: (r[2] instanceof Date) ? Utilities.formatDate(r[2], tz, 'MMM d') : str(r[2]),
+          interval: asNumber(r[3]),
+          lastMowed: (r[4] instanceof Date) ? Utilities.formatDate(r[4], tz, 'MMM d') : str(r[4]),
           daysSinceMowed: (dsm === null) ? null : Math.round(dsm),
           dueIn: (due === null) ? null : Math.round(due)
         });
@@ -308,58 +334,54 @@ function setupSpreadsheet() {
   ex.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#b7a7e0');
   ex.setFrozenRows(1);
 
-  // --- Customers tab (customer → Standard Rate + Address) ---
+  // --- Customers tab (one row per customer: Rate, Address + mow-cycle tracking) ---
+  // A Customer | B Standard Rate | C Address | D Mow Every (days) |
+  // E Last Mowed | F Days Since Mowed | G Due In (days)
   var customers = ss.getSheetByName(CUSTOMERS_TAB) || ss.insertSheet(CUSTOMERS_TAB);
-  customers.getRange(1, 1, 1, 3).setValues([['Customer', 'Standard Rate', 'Address']]);
-  customers.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#b7a7e0');
+  var custHeaders = ['Customer', 'Standard Rate', 'Address',
+                     'Mow Every (days)', 'Last Mowed', 'Days Since Mowed', 'Due In (days)'];
+  customers.getRange(1, 1, 1, custHeaders.length).setValues([custHeaders])
+    .setFontWeight('bold').setBackground('#b7a7e0').setFontColor('#000000');
   customers.setFrozenRows(1);
-  // Seed the customer names we know about; fill in the rates + addresses yourself.
+
+  // Seed the customer names we know about (first run only); rates + addresses
+  // are filled in by hand, default interval 14 days.
   var seed = [
     'Adam', 'Anderson', 'Beverly', 'Brian', 'Corbit', 'Eldridge', 'Harrington',
     'Helen Lee', 'Holland', 'Hunter', 'Johnson', 'King', 'Larry', 'Matthews',
     'Nancy Patton', 'Retzer', 'Schreck', 'Yatish'
   ];
   if (customers.getLastRow() < 2) {
-    var rows = seed.map(function (name) { return [name, '', '']; });
-    customers.getRange(2, 1, rows.length, 3).setValues(rows);
-  }
-
-  // --- Planning tab (Days Since Mowed, computed from the Lawn Log) ---
-  var plan = ss.getSheetByName(PLANNING_TAB) || ss.insertSheet(PLANNING_TAB);
-  var planHeaders = ['Customer', 'Mow Every (days)', 'Last Mowed', 'Days Since Mowed', 'Due In (days)'];
-  plan.getRange(1, 1, 1, planHeaders.length).setValues([planHeaders])
-    .setFontWeight('bold').setBackground('#b7a7e0').setFontColor('#000000');
-  plan.setFrozenRows(1);
-
-  // Seed customers (only the first time) with a default 14-day interval.
-  if (plan.getLastRow() < 2) {
-    var pseed = seed.map(function (name) { return [name, 14]; });
-    plan.getRange(2, 1, pseed.length, 2).setValues(pseed);
+    var rows = seed.map(function (name) { return [name, '', '', 14]; });
+    customers.getRange(2, 1, rows.length, 4).setValues(rows);
   }
 
   // Formulas down to row LAST so newly added customers auto-calculate.
+  //   E Last Mowed       = most recent Lawn Log date for this customer
+  //   F Days Since Mowed = today − Last Mowed
+  //   G Due In (days)    = Mow Every − Days Since Mowed
   var LAST = 300;
-  var cF = [], dF = [], eF = [];
+  var eF = [], fF = [], gF = [];
   for (var r = 2; r <= LAST; r++) {
-    cF.push(["=IF($A" + r + "=\"\",\"\",IF(COUNTIF('" + LAWN_TAB + "'!$B:$B,$A" + r +
+    eF.push(["=IF($A" + r + "=\"\",\"\",IF(COUNTIF('" + LAWN_TAB + "'!$B:$B,$A" + r +
              ")=0,\"\",MAXIFS('" + LAWN_TAB + "'!$A:$A,'" + LAWN_TAB + "'!$B:$B,$A" + r + ")))"]);
-    dF.push(["=IF($C" + r + "=\"\",\"\",TODAY()-INT($C" + r + "))"]);
-    eF.push(["=IF($C" + r + "=\"\",\"\",$B" + r + "-$D" + r + ")"]);
+    fF.push(["=IF($E" + r + "=\"\",\"\",TODAY()-INT($E" + r + "))"]);
+    gF.push(["=IF($E" + r + "=\"\",\"\",$D" + r + "-$F" + r + ")"]);
   }
-  plan.getRange(2, 3, LAST - 1, 1).setFormulas(cF).setNumberFormat('mmm d');
+  customers.getRange(2, 5, LAST - 1, 1).setFormulas(eF).setNumberFormat('mmm d');
   // Force plain-number format so these day-count formulas aren't auto-formatted
   // as dates (which would make getValues() return Dates, breaking the app read).
-  plan.getRange(2, 4, LAST - 1, 1).setFormulas(dF).setNumberFormat('0');
-  plan.getRange(2, 5, LAST - 1, 1).setFormulas(eF).setNumberFormat('0');
+  customers.getRange(2, 6, LAST - 1, 1).setFormulas(fF).setNumberFormat('0');
+  customers.getRange(2, 7, LAST - 1, 1).setFormulas(gF).setNumberFormat('0');
 
-  // Green → yellow → red gradient on Days Since Mowed, like the old sheet.
+  // Green → yellow → red gradient on Days Since Mowed (col F), like the old sheet.
   var grad = SpreadsheetApp.newConditionalFormatRule()
     .setGradientMinpointWithValue('#57bb8a', SpreadsheetApp.InterpolationType.NUMBER, '0')
     .setGradientMidpointWithValue('#ffd666', SpreadsheetApp.InterpolationType.NUMBER, '10')
     .setGradientMaxpointWithValue('#e67c73', SpreadsheetApp.InterpolationType.NUMBER, '21')
-    .setRanges([plan.getRange('D2:D' + LAST)])
+    .setRanges([customers.getRange('F2:F' + LAST)])
     .build();
-  plan.setConditionalFormatRules([grad]);
+  customers.setConditionalFormatRules([grad]);
 
   // Done. (Logged instead of a popup so the run never waits on a dialog.)
   Logger.log('Setup complete. Next: fill in the Customers tab (rates + addresses), then Deploy → New deployment → Web app, and paste the /exec URL into the app Settings.');

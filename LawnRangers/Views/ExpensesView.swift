@@ -12,6 +12,7 @@ struct ExpensesView: View {
 
     @State private var showingLogLawn = false
     @State private var showingLogExpense = false
+    @State private var showingAddCustomer = false
     @State private var showingSettings = false
 
     private var customerNames: [String] {
@@ -46,6 +47,9 @@ struct ExpensesView: View {
                             Button { showingLogExpense = true } label: {
                                 Label("Log an Expense", systemImage: "dollarsign.circle")
                             }
+                            Button { showingAddCustomer = true } label: {
+                                Label("Add a Customer", systemImage: "person.badge.plus")
+                            }
                         } label: {
                             Image(systemName: "plus").accessibilityLabel("Add entry")
                         }
@@ -53,6 +57,7 @@ struct ExpensesView: View {
                 }
                 .sheet(isPresented: $showingLogLawn) { LogLawnView(knownCustomers: customerNames) }
                 .sheet(isPresented: $showingLogExpense) { LogExpenseView() }
+                .sheet(isPresented: $showingAddCustomer) { AddCustomerView() }
                 .sheet(isPresented: $showingSettings) { SettingsView() }
                 .task { if expenses.isEmpty { await load() } }
                 .refreshable { await load() }
